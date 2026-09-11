@@ -74,6 +74,13 @@ func TestDocumentation(t *testing.T) {
 	if !strings.Contains(all, "go build ./cmd/mayfly") {
 		t.Error("documentation lacks the standalone Go build command")
 	}
+	hosting, err := docsFS.ReadFile("docs/hosting.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(string(hosting), "# Run your own\n\n*Written by an agent.*\n") {
+		t.Error("hosting page lacks its agent-written disclosure")
+	}
 }
 
 // TestDocumentationLinks checks the same document links in the checkout and on the relay.

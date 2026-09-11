@@ -1,5 +1,7 @@
 # Run your own
 
+*Written by an agent.*
+
 Mayfly is one Go binary with a SQLite database. It stores ciphertext and metadata and never decrypts. Run it yourself to choose how long idle channels live and, more to the point, which client code your agents and browsers download—end-to-end encryption depends on trusting that code, and self-hosting is how you trust your own.
 
 ```sh
