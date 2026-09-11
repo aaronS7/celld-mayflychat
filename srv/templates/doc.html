@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>{{.Title}} — Mayfly Chat</title>
+{{template "site-head" .}}
+<style nonce="{{.CSPNonce}}">
+#document-source{white-space:pre-wrap;overflow-wrap:anywhere}
+.docs .prose{overflow-wrap:anywhere;min-width:0}
+.docs .prose pre{white-space:pre;overflow:auto;max-width:100%}
+.docs .prose table{display:block;overflow:auto;max-width:100%}
+</style>
+</head>
+<body>
+<main class="shell docs">
+<header>{{template "brand"}}</header>
+<article id="document" class="prose"><pre id="document-source">{{.Source}}</pre></article>
+{{template "footer"}}
+</main>
+<script nonce="{{.CSPNonce}}">{{.MarkedJS}}</script>
+<script nonce="{{.CSPNonce}}">{{.PurifyJS}}</script>
+<script nonce="{{.CSPNonce}}">{{browser "document.js"}}</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+{{/* Shared shell: one visual system for landing, channel, documents, and gone pages.
+     Light is sunlit sandstone; dark is aubergine night with copper accents, following
+     the system preference. No fetched assets, fonts, or persisted theme state. */}}
+{{define "site-head"}}<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23963f29' d='M2 2h12l-3 10 5 7-4 11H2zM18 2h12v28H17l4-11-5-7z'/%3E%3C/svg%3E">
+<style nonce="{{.CSPNonce}}">
+:root{color-scheme:light dark;--bg:#f6ead9;--fg:#402d2a;--accent:#a14b32;--muted:#806351;--rule:#d9bfa6;--soft:#ecd9c1;--on-accent:#fff5e5;--speaker-lightness:24%}
+@media(prefers-color-scheme:dark){:root{--bg:#190e19;--fg:#f0e0dd;--accent:#dd9a7e;--muted:#b49aa9;--rule:#583848;--soft:#2b1b2b;--on-accent:#190e19;--speaker-lightness:70%}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif}
+a{color:inherit;text-decoration-thickness:1px;text-underline-offset:3px}
+a:hover{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+button,a.button{font:inherit;padding:.4rem .9rem;border-radius:4px;border:1px solid var(--rule);background:var(--soft);color:inherit;cursor:pointer}
+a.button{display:inline-block;text-decoration:none}
+.shell>header .actions a.button{font-size:.85rem;padding:.3rem .7rem}
+button:disabled{cursor:not-allowed;opacity:.55}
+a.button[aria-busy="true"]{cursor:progress;opacity:.55}
+button.primary,a.button.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:650}
+button.primary:hover:not(:disabled),a.button.primary:hover:not([aria-busy="true"]){filter:brightness(.9)}
+button.icon{padding:.1rem .35rem;border:0;background:none;color:var(--muted);line-height:1;vertical-align:middle}
+button.icon svg{display:block;width:1rem;height:1rem;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+button.icon:hover:not(:disabled){color:var(--accent)}
+.shell{width:min(56rem,100%);min-height:100svh;margin:auto;padding:1.25rem 1rem 1.5rem;display:flex;flex-direction:column}
+.shell>header{display:flex;align-items:center;justify-content:space-between;gap:.5rem 1rem;flex-wrap:wrap;font-size:1.05rem}
+.brand{display:inline-flex;align-items:center;gap:.4em;font:600 1em/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:-.04em;text-decoration:none;white-space:nowrap}
+.brand .mark{width:1em;height:1em;color:var(--accent);flex:none}
+footer.site{margin-top:auto;padding-top:.8rem;border-top:1px solid var(--rule);font-size:.8rem;color:var(--muted)}
+footer.site nav{display:flex;flex-wrap:wrap;gap:.3rem .8rem}
+footer.site a{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem 0}
+footer.site svg{width:1em;height:1em;fill:currentColor}
+.meta{color:var(--muted);font-size:.85rem}
+.gone{margin:2rem 0 auto}.gone h1{font-size:1.3rem;margin:0 0 .5rem}
+.docs>header{margin-bottom:.75rem}
+.prose{max-width:44rem;line-height:1.6;overflow-wrap:anywhere}
+.prose h1{font-size:1.6rem;margin:1rem 0 .6rem}.prose h2{font-size:1.2rem;margin:1.4rem 0 .4rem}.prose h3{font-size:1.05rem;margin:1.2rem 0 .3rem}
+.prose pre,.prose code{font:13px/1.45 ui-monospace,Menlo,Consolas,monospace}
+.prose pre{background:var(--soft);padding:.75rem;border-radius:6px;overflow:auto}
+.prose code{background:var(--soft);padding:.1em .3em;border-radius:3px}.prose pre code{background:none;padding:0}
+.prose blockquote{border-left:3px solid var(--rule);margin:.8rem 0;padding-left:.8rem;color:var(--muted)}
+.prose table{border-collapse:collapse}.prose th,.prose td{text-align:left;padding:.35rem .5rem;border-bottom:1px solid var(--rule)}
+.prose a{color:var(--accent)}
+</style>{{end}}
+{{define "edit-icon"}}<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="m17 3 4 4-10 10-4 1 1-4Z"/><path d="m15 5 4 4"/></svg>{{end}}
+{{define "brand"}}<a class="brand" href="/"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path fill="currentColor" d="M2 2h12l-3 10 5 7-4 11H2zM18 2h12v28H17l4-11-5-7z"/></svg>Mayfly Chat</a>{{end}}
+{{define "footer"}}<footer class="site"><nav aria-label="Site"><a href="/docs/about.md">What is this?</a><a href="/docs/security.md">Security</a><a href="https://github.com/josharian/mayfly/blob/main/srv/docs/hosting.md"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>Run your own</a><a href="/llms.txt">llms.txt</a></nav></footer>{{end}}

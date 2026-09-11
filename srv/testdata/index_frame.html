@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><link rel="icon" href="data:,"><body style="margin:0"><script>const EXPECT_DARK_SCHEME = EXPECT_DARK;</script>
+<iframe id="f" style="border:0;width:EXPECT_WIDTHpx;height:800px" src="/"></iframe>
+<script>
+const send = r => fetch('/test-result', {method:'POST', body:JSON.stringify(r)});
+document.getElementById('f').addEventListener('load', () => setTimeout(() => {
+  try {
+    const w = document.getElementById('f').contentWindow, d = w.document;
+    const b = d.getElementById('newbtn');
+    if (!b || b.tagName !== 'A' || b.getAttribute('href') !== '/#new' || b.tabIndex !== 0 || b.hasAttribute('role')) throw new Error('New channel must be a native, keyboard-focusable link');
+    const r = b.getBoundingClientRect();
+    const brand = d.querySelector('h1 a.brand'), footer = d.querySelector('footer.site nav');
+    const brandBox = brand.getBoundingClientRect(), mark = brand.querySelector('svg').getBoundingClientRect();
+    if (brand.closest('h1').nextElementSibling !== b || b.firstChild.textContent.trim() !== 'New channel') throw new Error('New channel must immediately follow the heading');
+    const paragraphs = [...d.querySelectorAll('.content > p:not(#status)')];
+    if (paragraphs.length < 1 || paragraphs.some(p => !p.textContent.trim())) throw new Error('landing explanation missing');
+    if (brandBox.bottom > r.top || r.bottom > paragraphs[0].getBoundingClientRect().top) throw new Error('landing order must be heading, action, explanation');
+    const hosting = footer.querySelector('a[href="https://github.com/josharian/mayfly/blob/main/srv/docs/hosting.md"]');
+    if (!hosting?.querySelector('svg') || hosting.textContent !== 'Run your own' || footer.querySelector('a[href="/docs/about.md"]')?.textContent !== 'What is this?') throw new Error('wrong footer links');
+    send({ok:true, disabled:b.getAttribute('aria-busy') === 'true' || b.getAttribute('aria-disabled') === 'true', visible:r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= w.innerHeight,
+      scripts:d.scripts.length, newChannel:typeof w.newChannel === 'function',
+      scrollWidth:d.documentElement.scrollWidth, innerWidth:w.innerWidth,
+      dark:w.matchMedia('(prefers-color-scheme: dark)').matches, background:w.getComputedStyle(d.body).backgroundColor,
+      // One small mark on the brand line, no separate art block above the heading.
+      brandOK:brand.textContent === 'Mayfly Chat' && brand.getAttribute('href') === '/' && mark.height <= brandBox.height && Math.abs((mark.top+mark.bottom)/2-(brandBox.top+brandBox.bottom)/2) < 6 && mark.left < brandBox.left + 8 && d.querySelectorAll('svg').length === 2,
+      footerOK:footer.getBoundingClientRect().top > r.bottom && footer.querySelectorAll('a').length === 4 && w.getComputedStyle(footer.parentElement).borderTopWidth === '1px',
+      focusable:[...d.querySelectorAll('button,a[href]')].filter(e => e.tabIndex >= 0).length});
+  } catch (e) { send({ok:false, error:String(e)}); }
+}, 200));
+</script>

@@ -1,0 +1,74 @@
+{{define "view-css"}}<style nonce="{{.CSPNonce}}">
+.view>header .actions{display:flex;gap:.5rem;flex-wrap:wrap}
+.view>header .actions button{font-size:.85rem;padding:.3rem .7rem}
+#delbtn{color:var(--accent)}
+.titlerow{display:flex;align-items:baseline;gap:.4rem;margin-top:1.25rem}
+h1{font-size:1.3rem;margin:0 0 .5rem}
+h1.title{margin-bottom:.1rem;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;min-width:0}
+h1.title:empty::before{content:'untitled';color:var(--muted)}
+h1.title[contenteditable]{cursor:text;border-bottom:1px dashed var(--muted)}
+h1.title[contenteditable]:focus{outline:none;border-bottom-color:var(--accent);display:block;-webkit-line-clamp:none;max-height:6lh;overflow-y:auto}
+#editbtn{font-size:1rem;flex:none}
+#expwrap{margin:0 0 1rem}
+code,pre,input.url{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace}
+input.url{width:100%;padding:.4rem;border:1px solid var(--rule);border-radius:4px;background:var(--soft);color:inherit}
+#log{margin:1rem 0}
+.msg{padding:.45rem .75rem;border-left:4px solid var(--c,var(--rule));margin:.5rem 0;background:color-mix(in srgb,var(--c,var(--muted)) 6%,transparent);border-radius:0 6px 6px 0}
+.msg.cont{margin-top:-.35rem;border-top-right-radius:0}
+/* The sender ellipsizes on one line; the metadata beside it keeps its own
+   pieces together but may drop to a second line, and a raw IPv6 address may
+   break within itself. Nothing here shortens a value: the address stays
+   whole in the DOM and on screen. Every row shows its sender, including
+   consecutive rows by the same name. */
+.msg .hdr{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 .5rem;font-size:.8rem;color:var(--muted);margin-bottom:.15rem}
+.msg .hdr b{color:var(--c,inherit);flex:1 1 6rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msg .hdr>span{flex:0 1 auto;min-width:0}
+.msg .hdr a{text-decoration:none;color:var(--muted)}.msg .hdr a:hover{text-decoration:underline}
+.msg .hdr code.src{font-size:.75rem;color:var(--muted);overflow-wrap:anywhere}
+.msg .txt{white-space:normal;overflow-wrap:anywhere;min-width:0}
+.msg .txt.join{color:var(--muted);font-style:italic}
+.msg .txt>:first-child{margin-top:0}.msg .txt>:last-child{margin-bottom:0}
+.msg .txt p,.msg .txt blockquote,.msg .txt ul,.msg .txt ol{margin:.5rem 0}
+.msg .txt h1,.msg .txt h2,.msg .txt h3,.msg .txt h4,.msg .txt h5,.msg .txt h6{font-size:1.1em;margin:.7rem 0 .3rem}
+.msg .txt blockquote{border-left:3px solid var(--rule);padding-left:.75rem}
+.msg .txt ul,.msg .txt ol{padding-left:1.5rem}
+.msg .txt pre{white-space:pre;word-break:normal;overflow-wrap:normal;overflow:auto;max-width:100%;background:var(--soft);padding:.75rem;border-radius:6px}
+.msg .txt code{white-space:pre-wrap}.msg .txt pre code{white-space:pre}
+.msg .txt table{display:block;overflow:auto;max-width:100%;width:max-content;border-collapse:collapse}
+.msg .txt th,.msg .txt td{min-width:4rem;text-align:left;padding:.35rem .5rem;border-bottom:1px solid var(--rule)}
+.msg .txt .literal-html{white-space:pre-wrap}
+.msg .txt .load-image{font-size:.8rem;padding:.1rem .4rem;margin:0 .3rem}
+.msg .txt .image-slot img{display:block;max-width:100%;max-height:24rem;object-fit:contain}
+.msg .reply-target{display:block;margin:.2rem 0;color:var(--muted)}
+.msg .txt a{color:var(--c,inherit)}
+.msg.highlight{outline:2px solid var(--c,var(--accent))}
+.msg .act{font:inherit;font-size:1rem;padding:.1rem .4rem;border:0;background:none;color:var(--muted);cursor:pointer;line-height:1;vertical-align:middle}
+.msg .act small{font-size:.7em;font-weight:700;vertical-align:top}
+.msg .act:hover{color:inherit}
+.reacts{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem}
+.chip{font-size:.85rem;padding:.1rem .5rem;border-radius:999px;border:1px solid var(--rule);background:var(--soft);cursor:pointer;line-height:1.4;max-width:18rem;display:inline-flex;align-items:center;gap:.3em}
+.chip.mine{border-color:var(--c,var(--accent));background:color-mix(in srgb,var(--c,var(--accent)) 18%,transparent)}
+.chip-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:14rem}
+#picker{position:absolute;z-index:10;background:var(--bg);border:1px solid var(--rule);border-radius:8px;padding:.5rem;box-shadow:0 4px 16px rgba(0,0,0,.25);width:min(21rem,calc(100vw - 1rem));max-height:calc(100vh - 1rem);overflow:auto}
+#picker .sugg,#picker .found{display:flex;flex-wrap:wrap;gap:.2rem}
+#picker .found{margin-top:.4rem;max-height:7rem;overflow-y:auto}
+#picker button{min-width:0;max-width:min(14rem,100%);box-sizing:border-box;display:inline-flex;font-size:1.2rem;padding:.15rem .3rem;border:0;background:none;border-radius:4px;line-height:1.3}
+#picker .found button.lit{font-size:.9rem;font-weight:600;border:1px solid var(--rule);border-radius:999px;padding:.1rem .6rem;align-self:center}
+#picker button:hover{background:var(--soft)}
+#picker input{width:100%;font:inherit;padding:.35rem;margin-top:.4rem;border:1px solid var(--rule);border-radius:4px;background:var(--bg);color:inherit}
+.pick-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#copy-status:empty,#name-status:empty,#status:empty{display:none}
+textarea{width:100%;font:inherit;padding:.5rem;border-radius:4px;border:1px solid var(--rule);background:var(--bg);color:inherit;min-height:4rem;resize:vertical}
+#compose{display:flex;flex-direction:column;gap:.5rem;position:sticky;bottom:0;padding:.75rem 0;background:var(--bg)}
+#poster{display:inline-flex;align-items:center;gap:.3rem;flex-wrap:wrap}
+#poster b{overflow-wrap:anywhere}
+#name{font:inherit;padding:.2rem .4rem;border:1px solid var(--rule);border-radius:4px;background:var(--bg);color:inherit;width:12rem;max-width:100%}
+.row{display:flex;gap:.5rem;align-items:center;justify-content:space-between}
+.row>.meta{min-width:0;overflow-wrap:anywhere}
+.warn{border:1px solid var(--accent);padding:.5rem .75rem;border-radius:6px;margin:1rem 0}
+dialog{background:var(--bg);color:inherit;border:1px solid var(--rule);border-radius:8px;padding:1rem 1.25rem;max-width:min(24rem,calc(100vw - 2rem))}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+dialog p{margin:0 0 .8rem}
+dialog .row{justify-content:flex-end}
+#delete-status{color:var(--accent)}
+</style>{{end}}

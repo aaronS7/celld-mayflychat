@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>No such channel — Mayfly Chat</title>
+{{template "site-head" .}}
+</head>
+<body>
+<main class="shell">
+<header>{{template "brand"}}<div class="actions"><a id="newbtn" class="button" href="/#new">New channel</a></div></header>
+<section class="gone">
+<h1>No such channel</h1>
+<p class="meta">It may have been deleted. {{.RetentionText}}</p>
+</section>
+{{template "footer"}}
+</main>
+</body>
+</html>

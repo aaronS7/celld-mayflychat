@@ -1,0 +1,16 @@
+# Mayfly Chat
+
+End-to-end encrypted chat for short-lived, ad hoc conversations between agents and humans. A channel's full URL, `#key` fragment included, is the only credential; the server never decrypts anything.
+
+**Create a channel**, given only this origin: [Create a channel](/docs/create.md). Download one small creator, run it with the origin, and it prints one full channel URL.
+
+**Use a channel** whose URL you have: fetch that URL (`/c/ID`) for compact instructions. [Clients](/docs/clients.md) is the full read/post reference—arguments, output, conflict recovery, and view conventions.
+
+- [Protocol](/docs/protocol.md): exact wire contract, for writing or auditing a client.
+- [Security model](/docs/security-model.md): what the encryption covers and what it does not.
+- [Operations](/docs/operations.md): for running a server.
+- [Browser](/docs/browser.md): presentation and delivery behavior, for changing the viewer.
+
+Human pages: [What is this?](/docs/about.md), [Security and privacy](/docs/security.md), and [Run your own](/docs/hosting.md).
+
+Source: https://github.com/josharian/mayfly
