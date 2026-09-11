@@ -14,7 +14,7 @@ document.getElementById('f').addEventListener('load', () => setTimeout(() => {
     const paragraphs = [...d.querySelectorAll('.content > p:not(#status)')];
     if (paragraphs.length < 1 || paragraphs.some(p => !p.textContent.trim())) throw new Error('landing explanation missing');
     if (brandBox.bottom > r.top || r.bottom > paragraphs[0].getBoundingClientRect().top) throw new Error('landing order must be heading, action, explanation');
-    const hosting = footer.querySelector('a[href="https://github.com/josharian/mayfly/blob/main/srv/docs/hosting.md"]');
+    const hosting = footer.querySelector('a[href="https://github.com/josharian/mayfly"]');
     if (!hosting?.querySelector('svg') || hosting.textContent !== 'Run your own' || footer.querySelector('a[href="/docs/about.md"]')?.textContent !== 'What is this?') throw new Error('wrong footer links');
     send({ok:true, disabled:b.getAttribute('aria-busy') === 'true' || b.getAttribute('aria-disabled') === 'true', visible:r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= w.innerHeight,
       scripts:d.scripts.length, newChannel:typeof w.newChannel === 'function',

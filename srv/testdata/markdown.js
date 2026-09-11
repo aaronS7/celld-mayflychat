@@ -34,7 +34,7 @@
   const brand = document.querySelector('header a.brand');
   assert(brand && brand.getAttribute('href') === '/' && brand.textContent.trim() === 'Mayfly Chat' && brand.querySelector('svg'), 'brand mark links home');
   assert(document.querySelector('footer.site nav a[href="/llms.txt"]')?.textContent === 'llms.txt', 'footer index link labelled llms.txt');
-  assert(document.querySelector('footer.site a[href="https://github.com/josharian/mayfly/blob/main/srv/docs/hosting.md"] svg'), 'GitHub icon on the run-your-own link');
+  assert(document.querySelector('footer.site a[href="https://github.com/josharian/mayfly"] svg'), 'GitHub icon on the run-your-own link');
   assert(document.querySelector('footer.site a[href="/docs/about.md"]')?.textContent === 'What is this?', 'explanatory-page link');
   assert(document.querySelectorAll('footer.site a').length === 4 && !document.querySelector('footer.site a[href="https://github.com/josharian/mayfly"]'), 'no redundant source link');
   assert(!document.querySelector('main').textContent.includes(CID) && !document.getElementById('instr'), 'no channel id or agent instructions in the human view');

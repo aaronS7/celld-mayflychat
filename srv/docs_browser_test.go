@@ -167,7 +167,7 @@ const documentationBrowserChecks = `
     assert(footer, 'footer belongs to shell');
     assert([...footer.querySelectorAll('a')].map(a => a.textContent.trim()).join('|') === 'What is this?|Security|Run your own|llms.txt', 'four shared footer links with no Open source link');
     assert(footer.querySelector('a[href="/docs/about.md"]')?.textContent === 'What is this?', 'usage link label and destination');
-    assert(footer.querySelectorAll('svg').length === 1 && footer.querySelector('a[href="https://github.com/josharian/mayfly/blob/main/srv/docs/hosting.md"] > svg[aria-hidden="true"]'), 'GitHub icon belongs only to repository hosting link');
+    assert(footer.querySelectorAll('svg').length === 1 && footer.querySelector('a[href="https://github.com/josharian/mayfly"] > svg[aria-hidden="true"]'), 'GitHub icon belongs only to repository hosting link');
     assert(matchMedia('(prefers-color-scheme: dark)').matches === DOC_TEST.dark, 'color scheme emulation');
     assert(innerWidth === Number(DOC_TEST.width), 'exact document viewport');
     assert(!window.DOC_PWN, 'source escaped and scripts inert');

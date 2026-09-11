@@ -97,7 +97,7 @@ func TestPageLinksResolve(t *testing.T) {
 	seen := map[string]bool{}
 	for _, page := range []string{ts.URL + "/", a.url(""), ts.URL + "/c/" + strings.Repeat("A", 22)} {
 		_, html := do(t, "GET", page, "", htmlHdr())
-		for _, want := range []string{`<a class="brand" href="/">`, `<footer class="site">`, `href="https://github.com/josharian/mayfly/blob/main/srv/docs/hosting.md"`, `href="/docs/about.md"`, `href="/llms.txt"`} {
+		for _, want := range []string{`<a class="brand" href="/">`, `<footer class="site">`, `href="https://github.com/josharian/mayfly"`, `href="/docs/about.md"`, `href="/llms.txt"`} {
 			if !strings.Contains(html, want) {
 				t.Errorf("%s lacks the shared shell piece %q", page, want)
 			}

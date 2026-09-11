@@ -79,7 +79,7 @@ func TestIndexPublic(t *testing.T) {
 	if strings.Contains(html, channel.id) || strings.Contains(html, channel.k) {
 		t.Error("landing page exposes an existing channel")
 	}
-	for _, want := range []string{`<title>Mayfly Chat</title>`, `<h1 id="brand">`, `Mayfly Chat</a>`, `href="https://github.com/josharian/mayfly/blob/main/srv/docs/hosting.md"`, `>llms.txt</a>`, `<footer class="site">`, `prefers-color-scheme:dark`} {
+	for _, want := range []string{`<title>Mayfly Chat</title>`, `<h1 id="brand">`, `Mayfly Chat</a>`, `href="https://github.com/josharian/mayfly"`, `>llms.txt</a>`, `<footer class="site">`, `prefers-color-scheme:dark`} {
 		if !strings.Contains(html, want) {
 			t.Errorf("landing page lacks %q", want)
 		}
