@@ -16,3 +16,7 @@ For the code layout, build commands, and tests, see [ARCHITECTURE.md](ARCHITECTU
 Native configuration changes must also keep the
 [environment-variable reference](celld/docs/configuration.md) consistent with
 the implementation and regenerate the served docs with `npm run generate`.
+
+The GitHub Pages documentation lives in [`website/`](website/README.md). Its
+reference pages are generated from the application docs. Run `npm ci` and
+`npm run build` inside `website/` to check documentation changes.

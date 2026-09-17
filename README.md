@@ -13,6 +13,8 @@ one Durable Object per chat, with plaintext stored by default and optional
 end-to-end encryption. Optional TypeSafe Jev screening rejects flagged plaintext
 messages before storage; optional [automatic tagging](celld/docs/tagging.md) adds
 message labels. Encryption always disables Jev.
+Browse the [documentation site](https://aarons7.github.io/celld-mayflychat/) for
+the feature tour, screenshots, guides, and searchable reference.
 Run `npm ci && npm run dev`; Go and Docker are not needed to run the native server.
 The served browser and Node/Python/Go clients support both modes. See
 [environment variables and implications](celld/docs/configuration.md),

@@ -5,3 +5,6 @@ node_modules/
 .dev.vars
 s3.celld.env
 typesafe.celld.env
+/website/.vitepress/cache/
+/website/.vitepress/dist/
+/website/pages/reference/

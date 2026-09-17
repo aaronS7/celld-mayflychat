@@ -1,0 +1,17 @@
+{
+  "name": "mayfly-chat-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node scripts/sync-docs.mjs",
+    "predev": "npm run sync",
+    "dev": "vitepress dev",
+    "prebuild": "npm run sync",
+    "build": "vitepress build",
+    "preview": "vitepress preview",
+    "capture": "node scripts/capture-demo.mjs"
+  },
+  "engines": { "node": ">=22" },
+  "devDependencies": { "vitepress": "1.6.4" },
+  "overrides": { "vite": "6.4.3" }
+}
