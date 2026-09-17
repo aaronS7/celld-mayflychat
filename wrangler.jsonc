@@ -1,0 +1,20 @@
+{
+  "name": "mayfly-native",
+  "main": "celld/native/worker.ts",
+  "compatibility_date": "2026-09-15",
+  "durable_objects": {
+    "bindings": [
+      { "name": "CHATS", "class_name": "Chat" },
+      { "name": "CREATION", "class_name": "CreationGate" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Chat", "CreationGate"] }],
+  "vars": {
+    // Set to "1" only behind a trusted proxy that appends/replaces client IPs.
+    "TRUST_PROXY": "0",
+    // Plaintext messages by default. 1 enables end-to-end encryption and disables Jev.
+    "ENCRYPTION_ENABLED": "0",
+    "JEV_ENABLED": "0",
+    "RETENTION_SECONDS": "86400"
+  }
+}

@@ -1,0 +1,9 @@
+**
+!go.mod
+!go.sum
+!cmd/
+!cmd/**
+!srv/
+!srv/**
+!Dockerfile
+!LICENSE

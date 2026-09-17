@@ -39,8 +39,8 @@ window.addEventListener('hashchange', () => location.reload()); // a new key mea
 // The session owns the delivered cursor and this page's identity; the poller
 // owns the one active read. Both call back into the rendering section below.
 const session = createSession({
-  open: event => open(KS, event),
-  seal: (seq, message) => seal(KS, seq, message),
+  open: event => openMessage(KS, event),
+  seal: (seq, message) => sealMessage(KS, seq, message),
   post: (last, blob) => fetch(`${EVENTS}?last=${last}`, {method:'POST', headers:hdr(), body:JSON.stringify(blob)}),
   beginPresentation,
   onLock: showLockedName,

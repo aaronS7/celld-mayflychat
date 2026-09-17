@@ -1,0 +1,22 @@
+{
+  "name": "mayfly",
+  "main": "celld/worker.js",
+  "compatibility_date": "2026-09-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "containers": [
+    {
+      "class_name": "MayflyContainer",
+      "image": "./Dockerfile",
+      "instance_type": "basic",
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "MAYFLY", "class_name": "MayflyContainer" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MayflyContainer"] }],
+  "vars": {
+    // Set to "1" only behind a trusted proxy that appends/replaces client IPs.
+    "TRUST_PROXY": "0"
+  }
+}

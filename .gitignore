@@ -1,2 +1,7 @@
 /mayfly
 *.sqlite3*
+node_modules/
+.celld/
+.dev.vars
+s3.celld.env
+typesafe.celld.env

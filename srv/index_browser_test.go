@@ -149,5 +149,8 @@ func TestIndexNativeNavigationBrowser(t *testing.T) {
 		"channel": "/c/" + channel.id + "#" + channel.k, "external": external,
 		"missing": "/c/" + deleted.id + "#" + deleted.k,
 	})
-	t.Log(runNode(t, "const config="+string(config)+";\n"+readFile(t, "testdata/chrome.cjs")+readFile(t, "testdata/chrome_navigation.cjs")+readFile(t, "testdata/index_native_navigation.cjs")))
+	// This fixture exercises 18 creation gestures plus ordinary navigation in
+	// one Chrome process. Allow enough time on a small VM with the race detector;
+	// the per-step readiness assertions still bound individual failures.
+	t.Log(runNodeWithin(t, "const config="+string(config)+";\n"+readFile(t, "testdata/chrome.cjs")+readFile(t, "testdata/chrome_navigation.cjs")+readFile(t, "testdata/index_native_navigation.cjs"), 180*time.Second))
 }

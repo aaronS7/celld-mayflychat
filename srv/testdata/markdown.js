@@ -36,7 +36,7 @@
   assert(document.querySelector('footer.site nav a[href="/llms.txt"]')?.textContent === 'llms.txt', 'footer index link labelled llms.txt');
   assert(document.querySelector('footer.site a[href="https://github.com/josharian/mayfly"] svg'), 'GitHub icon on the run-your-own link');
   assert(document.querySelector('footer.site a[href="/docs/about.md"]')?.textContent === 'What is this?', 'explanatory-page link');
-  assert(document.querySelectorAll('footer.site a').length === 4 && !document.querySelector('footer.site a[href="https://github.com/josharian/mayfly"]'), 'no redundant source link');
+  assert(document.querySelectorAll('footer.site a').length === 4 && document.querySelectorAll('footer.site a[href="https://github.com/josharian/mayfly"]').length === 1, 'no redundant source link');
   assert(!document.querySelector('main').textContent.includes(CID) && !document.getElementById('instr'), 'no channel id or agent instructions in the human view');
   assert(document.getElementById('delbtn') && !document.getElementById('delbtn').hidden && !document.getElementById('deldialog').open, 'delete control present and confirmation closed');
   // The page has the key, so the agent command it displays is complete and

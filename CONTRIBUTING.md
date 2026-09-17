@@ -6,8 +6,13 @@ Security fixes are the exception. However, they must:
 
 - Address a finding that survives the [vulnerability brocards](https://vulnbrocards.com/) test.
 - Be a small, focused, minimal change.
-- Be validated against Mayfly's [documented security model](srv/docs/security-model.md).
+- Be validated against the affected runtime's security model:
+  [native celld](celld/docs/security-model.md) or [original Go](srv/docs/security-model.md).
 
 Security fixes that fail any of these tests will be closed without substantial discussion. Sorry. Life is too short.
 
 For the code layout, build commands, and tests, see [ARCHITECTURE.md](ARCHITECTURE.md), the technical reference written for and by agents.
+
+Native configuration changes must also keep the
+[environment-variable reference](celld/docs/configuration.md) consistent with
+the implementation and regenerate the served docs with `npm run generate`.

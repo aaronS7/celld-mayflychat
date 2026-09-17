@@ -63,7 +63,7 @@ function createSession({open, seal, post, beginPresentation, onLock, onPending, 
           return;
         }
         // Retain ambiguous attempts until matching delivery proves success or rules them out.
-        if ((response.status >= 400 && response.status < 500) || (response.status === 503 && reply.error === 'restarting' && reply.posted === false)) {
+        if ((response.status >= 400 && response.status < 500) || (response.status === 503 && reply.posted === false && (reply.error === 'restarting' || reply.code === 'moderation_unavailable'))) {
           identity.attempts = identity.attempts.filter(a => a !== attempt);
         }
         if (response.status === 409) {

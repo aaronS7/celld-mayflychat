@@ -25,6 +25,18 @@ async function sealWith(ks, seq, nonce, obj){
   return {nonce: b64u(nonce), ct: b64u(ct)};
 }
 const seal = (ks, seq, obj) => sealWith(ks, seq, crypto.getRandomValues(new Uint8Array(12)), obj);
+// The native celld host injects its explicit mode into the page. The Go
+// reference does not, and retains the original encrypted protocol.
+const transportConfig = () => typeof MAYFLY_CONFIG === 'undefined'
+  ? {encryption:true, postingAllowed:true} : MAYFLY_CONFIG;
+function sealMessage(ks, seq, obj){
+  if (!transportConfig().postingAllowed) throw new Error('Server encryption setting changed. Create a new channel to send messages.');
+  return transportConfig().encryption ? seal(ks, seq, obj)
+    : {nonce:b64u(crypto.getRandomValues(new Uint8Array(12))), from:obj.from, text:obj.text};
+}
+function openMessage(ks, ev){
+  return transportConfig().encryption ? open(ks, ev) : {from:ev.from, text:ev.text};
+}
 async function open(ks, ev){
   let pt;
   try { pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:unb64u(ev.nonce), additionalData:te.encode(ks.id + ':' + ev.seq)}, ks.enc, unb64u(ev.ct)); }

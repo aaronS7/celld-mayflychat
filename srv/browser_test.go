@@ -24,11 +24,16 @@ func requireNode(t *testing.T) {
 // runNode runs a CommonJS fixture and reports its output on failure.
 func runNode(t *testing.T, source string) string {
 	t.Helper()
+	return runNodeWithin(t, source, 60*time.Second)
+}
+
+func runNodeWithin(t *testing.T, source string, timeout time.Duration) string {
+	t.Helper()
 	path := filepath.Join(t.TempDir(), "page.cjs")
 	if err := os.WriteFile(path, []byte(source), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(t.Context(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), timeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "node", path).CombinedOutput()
 	if err != nil {

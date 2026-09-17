@@ -4,6 +4,16 @@
 
 Mayfly is one Go binary. The server stores encrypted envelopes in SQLite and serves the browser view, the downloadable clients, and the documentation. Everything about message content, including encryption, validation, and the `/title`, `/react`, and `/re` conventions the browser interprets, belongs to clients. Sharing one executable does not make those client responsibilities part of the server.
 
+This checkout also provides a native TypeScript port for celld 0.5 in
+`celld/native/`. Its [architecture and hosting guide](celld/README.md) describes
+one SQLite Durable Object per chat, creation quotas, and protocol verification
+against this Go implementation. Shared browser modules default to encryption
+for Go and honor the native celld page's mode configuration. celld serves its
+mode-aware standalone clients from `celld/static/` and defaults to plaintext,
+with optional enforced Jev screening. Its
+[environment reference](celld/docs/configuration.md) documents defaults,
+precedence, and privacy implications. The remainder describes the Go server.
+
 Keep the programs small and inspectable. Extensibility does not justify a framework without another concrete use. Format Go with `goimports -w`.
 
 The pages in `srv/docs/` are the product contracts: keep them and the code consistent. The short human pages (`about.md`, `security.md`, and `hosting.md`) introduce the product; the technical references carry the detailed contracts.
