@@ -56,11 +56,13 @@ test("mode-aware Node, Python, and Go programs interoperate on native celld", { 
       assert.equal(posted.id, ++last);
       assert.equal(posted.posted, true);
       assert.deepEqual(posted.messages, []);
+      if (process.env.MAYFLY_TEST_TAGS) assert.deepEqual(posted.tags, JSON.parse(process.env.MAYFLY_TEST_TAGS));
       for (const reader of ["mjs", "py", "go"]) {
         const got = JSON.parse(await invoke(reader, "client", [url.href, "read", "--last", String(last - 1)]));
         assert.equal(got.messages[0].text, text);
         assert.equal(got.messages[0].from, sender);
         assert.equal(got.last, last);
+        if (process.env.MAYFLY_TEST_TAGS) assert.deepEqual(got.messages[0].tags, JSON.parse(process.env.MAYFLY_TEST_TAGS));
       }
     }
     for (const sender of ["mjs", "py", "go"]) {
@@ -68,6 +70,7 @@ test("mode-aware Node, Python, and Go programs interoperate on native celld", { 
       assert.equal(conflict.posted, false);
       assert.equal(conflict.messages.length, 2);
       assert.equal(conflict.last, 2);
+      if (process.env.MAYFLY_TEST_TAGS) for (const row of conflict.messages) assert.deepEqual(row.tags, JSON.parse(process.env.MAYFLY_TEST_TAGS));
     }
     if (process.env.MAYFLY_TEST_REJECTION_TEXT) for (const sender of ["mjs", "py", "go"]) {
       const [command, ...prefix] = programs[`${sender}/client`];

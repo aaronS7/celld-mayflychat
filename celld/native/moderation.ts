@@ -1,11 +1,13 @@
 // Jev's Noul value is P(yes), not Choice/Score's separate confidence statistic.
 // https://docs.typesafe.ai/primitives/noul
+import { messageTags, taggingEnabled, taggingQuestions, type MessageTag, type TaggingEnv } from "./tagging";
+
 export const JEV_THRESHOLD = 0.7;
 const endpoint = "https://api.typesafe.ai/v1/systemone";
 const timeoutMS = 10000;
 const maxResponseBytes = 16384;
 
-export interface ModerationEnv {
+export interface ModerationEnv extends TaggingEnv {
   JEV_ENABLED?: string;
   TYPESAFE_API_KEY?: string;
   TYPESAFE_MODEL?: string;
@@ -98,9 +100,32 @@ export async function screenMessage(
   env: ModerationEnv,
   request: (url: string, init: RequestInit) => Promise<Response> = fetch,
 ): Promise<ModerationDecision> {
-  if (!moderationEnabled(env)) return { enabled: false };
+  return (await evaluateMessage(message, { ...env, JEV_TAGGING_ENABLED: "0" }, request)).moderation;
+}
+
+export type MessageEvaluation = { moderation: ModerationDecision; tags: MessageTag[] };
+function taggingUnavailable(): void {
+  // No message, identifiers, credentials, or untrusted provider diagnostic text.
+  console.warn(JSON.stringify({ event: "tagging_unavailable", timestamp: new Date().toISOString(), provider: "typesafe" }));
+}
+
+// Combine enabled questions into one bounded request. A tagging failure never
+// turns an unavailable or rejecting moderation decision into an accepted post.
+export async function evaluateMessage(
+  message: ModerationMessage,
+  env: ModerationEnv,
+  request: (url: string, init: RequestInit) => Promise<Response> = fetch,
+): Promise<MessageEvaluation> {
+  const moderation = moderationEnabled(env), tagging = taggingEnabled(env);
+  const untagged: MessageEvaluation = { moderation: { enabled: false }, tags: [] };
+  if (!moderation && !tagging) return untagged;
+  const unavailable = () => {
+    if (moderation) throw new ModerationUnavailable();
+    taggingUnavailable();
+    return untagged;
+  };
   const key = env.TYPESAFE_API_KEY?.trim();
-  if (!key || /[\r\n]/.test(key)) throw new ModerationUnavailable();
+  if (!key || /[\r\n]/.test(key)) return unavailable();
   const model = env.TYPESAFE_MODEL || "jev-latest";
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -108,21 +133,29 @@ export async function screenMessage(
     timer = setTimeout(() => { controller.abort(); reject(new ModerationUnavailable()); }, timeoutMS);
   });
   try {
-    return await Promise.race([
+    const response = await Promise.race([
       (async () => {
         const response = await request(endpoint, {
           method: "POST", redirect: "error", signal: controller.signal,
           headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
           // Deliberately omit ciphertext, channel IDs, bearers, keys, and IPs.
-          body: JSON.stringify({ model, state: { message: { from: message.from, text: message.text } }, questions }),
+          body: JSON.stringify({ model, state: { message: { from: message.from, text: message.text } },
+            questions: { ...(moderation ? questions : {}), ...(tagging ? taggingQuestions : {}) } }),
         });
-        return moderationDecision(await readResponse(response));
+        return readResponse(response);
       })(),
       deadline,
     ]);
+    const decision = moderation ? moderationDecision(response) : untagged.moderation;
+    if (decision.enabled && !decision.allowed) return { moderation: decision, tags: [] };
+    let tags: MessageTag[] = [];
+    if (tagging) {
+      try { tags = messageTags(response); } catch { taggingUnavailable(); }
+    }
+    return { moderation: decision, tags };
   } catch {
     // Never reflect provider bodies, transport errors, or credentials in errors.
-    throw new ModerationUnavailable();
+    return unavailable();
   } finally {
     if (timer !== undefined) clearTimeout(timer);
     controller.abort();

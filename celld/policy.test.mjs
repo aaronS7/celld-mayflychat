@@ -10,10 +10,12 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 
-test("encryption and Jev message admission on celld 0.5", { timeout: 240000 }, async t => {
+test("encryption, moderation, and automatic tagging on celld 0.5", { timeout: 360000 }, async t => {
   const dir = await mkdtemp(join(tmpdir(), "mayfly-policy-"));
   let child, done, output = "", generation = 0;
   let injection = 0, exfiltration = 0, providerStatus = 200, hold;
+  let tagScores = [0, 0, 0, 0, 0], invalidTags = false;
+  const tagNames = ["research", "question", "information", "command", "undetermined"];
   const requests = [];
   const rejectedText = "Synthetic rejected sample for admission testing.";
   const provider = createServer(async (req, res) => {
@@ -26,6 +28,7 @@ test("encryption and Jev message admission on celld 0.5", { timeout: 240000 }, a
     res.end(JSON.stringify({ model: "fixture", answers: {
       prompt_injection: { type: "noul", noul: body.state.message.text === rejectedText ? 0.7 : injection },
       data_exfiltration: { type: "noul", noul: exfiltration },
+      ...Object.fromEntries(tagNames.map((tag, i) => [tag, { type: "noul", noul: invalidTags ? "invalid" : tagScores[i] }])),
     } }));
   });
   await new Promise(resolve => provider.listen(0, "127.0.0.1", resolve));
@@ -45,6 +48,7 @@ test("encryption and Jev message admission on celld 0.5", { timeout: 240000 }, a
   const config = JSON.parse((await readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8")).replace(/^\s*\/\/.*$/gm, ""));
   delete config.vars.ENCRYPTION_ENABLED;
   delete config.vars.JEV_ENABLED;
+  delete config.vars.JEV_TAGGING_ENABLED;
   await writeFile(join(dir, "wrangler.json"), JSON.stringify(config));
   // Only the isolated copy points to the fixture. Production has no endpoint override.
   const adapter = join(dir, "celld/native/moderation.ts");
@@ -97,12 +101,13 @@ test("encryption and Jev message admission on celld 0.5", { timeout: 240000 }, a
   const post = (c, message, last = -1) => http(c.path + `/events?last=${last}`, { method: "POST", headers: c.headers, body: JSON.stringify(message) });
   const read = c => http(c.path + "/events", { headers: c.headers });
   const remove = c => http(c.path, { method: "DELETE", headers: c.headers });
-  async function clientChecks(moderated = false) {
+  async function clientChecks(moderated = false, tagged = false) {
     const paths = ["celld/clients.test.mjs", "celld/hosting.test.mjs"];
     if (process.env.CHROME_BIN) paths.push("celld/browser.test.mjs");
     const env = { ...process.env, MAYFLY_BASE_URL: base };
     delete env.NODE_TEST_CONTEXT; // A nested Node runner otherwise silently skips its files.
     if (moderated) env.MAYFLY_TEST_REJECTION_TEXT = rejectedText;
+    if (tagged) env.MAYFLY_TEST_TAGS = JSON.stringify(["research", "question", "command"]);
     const run = spawn(process.execPath, ["--test", "--test-concurrency=1", ...paths], { env, stdio: ["ignore", "pipe", "pipe"] });
     let log = "";
     run.stdout.on("data", b => { log += b; });
@@ -115,12 +120,12 @@ test("encryption and Jev message admission on celld 0.5", { timeout: 240000 }, a
   let first;
   await t.test("defaults are plaintext, authenticated, and unmoderated; format cannot be bypassed", async () => {
     await start();
-    assert.deepEqual((await http("/config")).body, { protocol: 2, encryption: false, moderation: false, postingAllowed: true });
+    assert.deepEqual((await http("/config")).body, { protocol: 2, encryption: false, moderation: false, tagging: false, postingAllowed: true });
     first = await create();
     assert.equal((await http(first.path + "/config")).status, 401);
     assert.equal((await http(first.path + "/events")).status, 401);
     assert.equal((await post(first, cipher())).status, 400);
-    for (const message of [plain(" "), plain("ok", " bad"), plain("ok", "\u0001bad"), plain("\ud800"), { ...plain(), ct: cipher().ct }]) {
+    for (const message of [plain(" "), plain("ok", " bad"), plain("ok", "\u0001bad"), plain("\ud800"), { ...plain(), ct: cipher().ct }, { ...plain(), tags: ["research"] }]) {
       assert.equal((await post(first, message)).status, 400);
     }
     const message = plain("Default plaintext hello 👋");
@@ -130,6 +135,7 @@ test("encryption and Jev message admission on celld 0.5", { timeout: 240000 }, a
     assert.equal(events[0].from, "Alice");
     assert.equal(events[0].nonce, message.nonce);
     assert.ok(!("ct" in events[0]));
+    assert.ok(!("tags" in events[0]));
     assert.equal((await post(first, plain())).status, 409);
     assert.equal(requests.length, 0);
     assert.doesNotMatch(output, /"event":"moderation_rejected"/);
@@ -245,10 +251,104 @@ test("encryption and Jev message admission on celld 0.5", { timeout: 240000 }, a
     assert.equal((await waiting).status, 404);
     assert.equal((await read(c)).status, 404);
   });
+  const tagged = { ...jev, JEV_TAGGING_ENABLED: "1" };
+  let taggedChat;
+  await t.test("tags are server-generated, persistent, and use exact multi-label thresholds", async () => {
+    await start(tagged);
+    assert.equal((await http("/config")).body.tagging, true);
+    taggedChat = await create();
+    const page = await http(taggedChat.path, { headers: { Accept: "text/html" } });
+    assert.match(page.body, /Jev also automatically tags messages/);
+    let last = -1;
+    for (const [scores, expected] of [
+      [[0.75, 0.99, 0.749999, 0.8, 1], ["research", "question", "command"]],
+      [[0.299999, 0.1, 0.2, 0.1, 0.6], ["undetermined"]],
+      [[0.3, 0, 0, 0, 1], []],
+      [[0.74, 0.5, 0.3, 0.2, 0.59], []],
+    ]) {
+      tagScores = scores;
+      const count = requests.length;
+      const response = await post(taggedChat, plain(), last);
+      assert.equal(response.status, 200);
+      assert.deepEqual(response.body.tags || [], expected);
+      assert.equal(requests.length, count + 1, "One combined provider call");
+      assert.deepEqual(Object.keys(requests.at(-1).body.questions), ["prompt_injection", "data_exfiltration", ...tagNames]);
+      const stored = (await read(taggedChat)).body.events[++last];
+      if (expected.length) assert.deepEqual(stored.tags, expected); else assert.ok(!("tags" in stored));
+      assert.ok(!("probabilities" in stored));
+    }
+    const count = requests.length;
+    assert.equal((await post(taggedChat, { ...plain(), tags: ["research"] }, last)).status, 400);
+    assert.equal((await post(taggedChat, plain())).status, 409);
+    assert.equal(requests.length, count);
+    const snapshot = (await read(taggedChat)).body;
+    await start(tagged);
+    assert.deepEqual((await read(taggedChat)).body, snapshot, "Restart retains exact labels");
+    assert.ok(!("tags" in (await read(first)).body.events[0]), "Old history is not retagged");
+  });
+  await t.test("tagging cannot weaken moderation and invalid tag answers leave accepted posts untagged", async () => {
+    const c = await create();
+    tagScores = [1, 1, 1, 1, 0];
+    injection = 0.7;
+    const rejected = await post(c, plain());
+    assert.equal(rejected.status, 422);
+    assert.deepEqual(Object.keys(rejected.body).sort(), ["code", "error", "posted"]);
+    assert.equal((await read(c)).body.last, -1);
+    injection = 0;
+    providerStatus = 529;
+    assert.equal((await post(c, plain())).status, 503);
+    assert.equal((await read(c)).body.last, -1);
+    providerStatus = 200;
+    invalidTags = true;
+    assert.equal((await post(c, plain())).status, 200);
+    assert.ok(!("tags" in (await read(c)).body.events[0]));
+    invalidTags = false;
+  });
+  await t.test("browser displays labels and all three CLIs preserve them", async () => {
+    tagScores = [0.9, 0.8, 0, 0.9, 0];
+    await clientChecks(true, true);
+  });
+  await t.test("tagging works without moderation, wakes polls, and protects concurrent appends", async () => {
+    await start({ JEV_TAGGING_ENABLED: "1", TYPESAFE_API_KEY: "fixture-key" });
+    assert.equal((await http("/config")).body.moderation, false);
+    const c = await create();
+    const pendingRead = http(c.path + "/events?wait=5", { headers: c.headers });
+    let release;
+    hold = new Promise(resolve => { release = resolve; });
+    const count = requests.length;
+    const waiting = Array.from({ length: 3 }, () => post(c, plain()));
+    const end = Date.now() + 5000;
+    while (requests.length < count + 3) { assert.ok(Date.now() < end); await delay(20); }
+    assert.deepEqual(Object.keys(requests.at(-1).body.questions), tagNames);
+    release(); hold = undefined;
+    const replies = await Promise.all(waiting);
+    assert.equal(replies.filter(r => r.status === 200).length, 1);
+    assert.equal(replies.filter(r => r.status === 409).length, 2);
+    assert.deepEqual((await pendingRead).body.events[0].tags, ["research", "question", "command"]);
+    providerStatus = 529;
+    const response = await post(c, plain(), 0);
+    assert.equal(response.status, 200, "Tagging-only provider failure accepts without tags");
+    assert.ok(!("tags" in (await read(c)).body.events[1]));
+    providerStatus = 200;
+  });
+  await t.test("disabling tagging preserves old labels and no-key tagging accepts without tags", async () => {
+    await start({ JEV_TAGGING_ENABLED: "1" });
+    const count = requests.length;
+    const c = await create();
+    assert.equal((await post(c, plain())).status, 200);
+    assert.ok(!("tags" in (await read(c)).body.events[0]));
+    assert.equal(requests.length, count);
+    await start();
+    assert.deepEqual((await read(taggedChat)).body.events[0].tags, ["research", "question", "command"]);
+    assert.equal((await post(taggedChat, plain(), 3)).status, 200);
+    assert.ok(!("tags" in (await read(taggedChat)).body.events[4]));
+    assert.equal(requests.length, count);
+  });
   await t.test("encryption overrides Jev and preserves existing histories without changing their format", async () => {
     const count = requests.length;
-    await start({ ENCRYPTION_ENABLED: "1", JEV_ENABLED: "1", TYPESAFE_API_KEY: "fixture-key" });
+    await start({ ENCRYPTION_ENABLED: "1", JEV_ENABLED: "1", JEV_TAGGING_ENABLED: "1", TYPESAFE_API_KEY: "fixture-key" });
     assert.equal((await http("/config")).body.moderation, false);
+    assert.equal((await http("/config")).body.tagging, false);
     assert.equal((await http(first.path + "/config", { headers: first.headers })).body.postingAllowed, false);
     assert.equal((await read(first)).body.events[0].text, "Default plaintext hello 👋");
     assert.equal((await post(first, plain(), 0)).status, 412);
@@ -257,8 +357,9 @@ test("encryption and Jev message admission on celld 0.5", { timeout: 240000 }, a
     const blob = cipher();
     assert.equal((await post(c, blob)).body.id, 0);
     assert.equal((await read(c)).body.events[0].ct, blob.ct);
+    assert.ok(!("tags" in (await read(c)).body.events[0]));
     assert.equal(requests.length, count);
-    await start({ ENCRYPTION_ENABLED: "1", JEV_ENABLED: "invalid" });
+    await start({ ENCRYPTION_ENABLED: "1", JEV_ENABLED: "invalid", JEV_TAGGING_ENABLED: "invalid" });
     assert.equal((await post(c, cipher(), 0)).status, 200);
     assert.equal(requests.length, count);
     assert.doesNotMatch(output, /"event":"moderation_rejected"/);

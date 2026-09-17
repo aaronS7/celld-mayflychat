@@ -66,6 +66,10 @@ def render(aes, ident, event):
             if "ct" not in event and valid_from(event.get("from")) and isinstance(event.get("text"), str):
                 (event["from"] + event["text"]).encode("utf-8")
                 row.update({"from": event["from"], "text": event["text"]})
+                if isinstance(event.get("tags"), list):
+                    tags = [tag for tag in ("research", "question", "information", "command", "undetermined") if tag in event["tags"]]
+                    if tags:
+                        row["tags"] = tags
             return row
         nonce = unb64(event["nonce"])
         if len(nonce) != 12:

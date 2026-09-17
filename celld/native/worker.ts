@@ -3,7 +3,8 @@ import { b64, bearerHash, canonicalID, cursor, failure, HTTPError, json, limits,
 import { channelPage, missingText, publicPage, retentionMS, secure, timestamp } from "./pages";
 import { settings, type SettingsEnv } from "./settings";
 import { incomingMessage } from "./message";
-import { ModerationUnavailable, screenMessage } from "./moderation";
+import { ModerationUnavailable, evaluateMessage } from "./moderation";
+import type { MessageTag } from "./tagging";
 
 interface Env extends SettingsEnv {
   CHATS: DurableObjectNamespace<Chat>;
@@ -12,8 +13,8 @@ interface Env extends SettingsEnv {
   TRUST_PROXY?: string;
 }
 type Metadata = { auth: ArrayBuffer; head: number; bytes: number; activity: number; encrypted: number; generation: string };
-type EventRow = { seq: number; ts: number; src: string; nonce: ArrayBuffer; ct: ArrayBuffer; message: string | null };
-type Envelope = { seq: number; ts: string; src: string; nonce: string } & ({ ct: string } | { from: string; text: string });
+type EventRow = { seq: number; ts: number; src: string; nonce: ArrayBuffer; ct: ArrayBuffer; message: string | null; tags: string | null };
+type Envelope = { seq: number; ts: string; src: string; nonce: string } & ({ ct: string } | { from: string; text: string; tags?: MessageTag[] });
 type Page = { last: number; more: boolean; events: Envelope[] };
 
 // One object owns one channel. Its message format is fixed at creation.
@@ -36,6 +37,7 @@ export class Chat extends DurableObject<Env> {
       if (!columns.includes("generation")) this.sql.exec("ALTER TABLE channel ADD COLUMN generation TEXT NOT NULL DEFAULT ''");
       const events = this.sql.exec<{ name: string }>("PRAGMA table_info(events)").toArray().map(row => row.name);
       if (!events.includes("message")) this.sql.exec("ALTER TABLE events ADD COLUMN message TEXT");
+      if (!events.includes("tags")) this.sql.exec("ALTER TABLE events ADD COLUMN tags TEXT");
     });
   }
   private metadata(): Metadata | undefined {
@@ -85,7 +87,7 @@ export class Chat extends DurableObject<Env> {
     const page: Page = { last: metadata.head, more: false, events: [] };
     if (since >= BigInt(metadata.head)) return page;
     // This block is synchronous: metadata and events share one input turn.
-    const rows = this.sql.exec<EventRow>("SELECT seq, ts, src, nonce, ct, message FROM events WHERE seq>? ORDER BY seq LIMIT ?", Number(since), limits.page).toArray();
+    const rows = this.sql.exec<EventRow>("SELECT seq, ts, src, nonce, ct, message, tags FROM events WHERE seq>? ORDER BY seq LIMIT ?", Number(since), limits.page).toArray();
     let bytes = 0;
     for (const row of rows) {
       const ct = new Uint8Array(row.ct);
@@ -93,7 +95,7 @@ export class Chat extends DurableObject<Env> {
       if (page.events.length && bytes + size > limits.channel) break;
       bytes += size;
       page.events.push({ seq: row.seq, ts: timestamp(row.ts), src: row.src, nonce: b64(new Uint8Array(row.nonce)),
-        ...(metadata.encrypted ? { ct: b64(ct) } : JSON.parse(row.message!)) });
+        ...(metadata.encrypted ? { ct: b64(ct) } : { ...JSON.parse(row.message!), ...(row.tags ? { tags: JSON.parse(row.tags) } : {}) }) });
     }
     if (page.events.length) {
       page.last = page.events.at(-1)!.seq;
@@ -144,7 +146,7 @@ export class Chat extends DurableObject<Env> {
       if (!auth || auth.length !== 32) throw new Error("Invalid internal create");
       this.ctx.storage.transactionSync(() => {
         this.sql.exec("CREATE TABLE IF NOT EXISTS channel (singleton INTEGER PRIMARY KEY CHECK(singleton=1), auth BLOB NOT NULL, head INTEGER NOT NULL, bytes INTEGER NOT NULL, activity INTEGER NOT NULL, encrypted INTEGER NOT NULL, generation TEXT NOT NULL)");
-        this.sql.exec("CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY, ts INTEGER NOT NULL, src TEXT NOT NULL, nonce BLOB NOT NULL, ct BLOB NOT NULL, message TEXT)");
+        this.sql.exec("CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY, ts INTEGER NOT NULL, src TEXT NOT NULL, nonce BLOB NOT NULL, ct BLOB NOT NULL, message TEXT, tags TEXT)");
         this.sql.exec("INSERT INTO channel (singleton, auth, head, bytes, activity, encrypted, generation) VALUES (1, ?, -1, 0, ?, ?, ?)", auth, Math.floor(Date.now() / 1000) * 1000, Number(config.encryption), crypto.randomUUID());
       });
       this.initialized = true;
@@ -188,8 +190,10 @@ export class Chat extends DurableObject<Env> {
     };
     const stale = check();
     if (stale) return json({ error: "conflict", posted: false, ...stale }, 409);
-    if (config.moderation && message) {
-      const decision = await screenMessage(message, this.env);
+    let tags: MessageTag[] = [];
+    if ((config.moderation || config.tagging) && message) {
+      const evaluation = await evaluateMessage(message, this.env);
+      const decision = evaluation.moderation;
       if (decision.enabled && !decision.allowed) {
         // Only validated category names and probabilities go into operator logs.
         // Never include the message, sender, channel, nonce, credentials, or
@@ -204,6 +208,7 @@ export class Chat extends DurableObject<Env> {
         }));
         return json({ error: "Message rejected by Jev screening.", code: "moderation_rejected", posted: false }, 422);
       }
+      tags = evaluation.tags;
     }
     // Provider/body awaits can overlap expiry, deletion, or another append.
     await this.expire();
@@ -214,7 +219,7 @@ export class Chat extends DurableObject<Env> {
       const metadata = this.authorize(hash);
       seq = metadata.head + 1;
       const now = Math.floor(Date.now() / 1000) * 1000;
-      this.sql.exec("INSERT INTO events (seq, ts, src, nonce, ct, message) VALUES (?, ?, ?, ?, ?, ?)", seq, now, request.headers.get("X-Mayfly-Source") || "", nonce, ct, message ? JSON.stringify(message) : null);
+      this.sql.exec("INSERT INTO events (seq, ts, src, nonce, ct, message, tags) VALUES (?, ?, ?, ?, ?, ?, ?)", seq, now, request.headers.get("X-Mayfly-Source") || "", nonce, ct, message ? JSON.stringify(message) : null, tags.length ? JSON.stringify(tags) : null);
       this.sql.exec("UPDATE channel SET head=?, bytes=bytes+?, activity=? WHERE singleton=1", seq, bytes, now);
     });
     if (conflict) return json({ error: "conflict", posted: false, ...conflict }, 409);
@@ -223,7 +228,7 @@ export class Chat extends DurableObject<Env> {
     const scheduled = this.schedule();
     this.notify();
     await scheduled;
-    return json({ posted: true, id: seq, ...await this.poll(BigInt(seq), wait, request.signal) });
+    return json({ posted: true, id: seq, ...(tags.length ? { tags } : {}), ...await this.poll(BigInt(seq), wait, request.signal) });
   }
 }
 

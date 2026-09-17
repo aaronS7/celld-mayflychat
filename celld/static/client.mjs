@@ -62,6 +62,10 @@ function render(enc, ident, event) {
       if (!Object.hasOwn(event, 'ct') && validFrom(event.from) && validText(event.text)) {
         row.from = event.from;
         row.text = event.text;
+        if (Array.isArray(event.tags)) {
+          const tags = ['research', 'question', 'information', 'command', 'undetermined'].filter(tag => event.tags.includes(tag));
+          if (tags.length) row.tags = tags;
+        }
       }
       return row;
     }

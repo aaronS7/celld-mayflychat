@@ -19,6 +19,11 @@ exfiltration probability of at least 70% rejects the message. Service failures
 also reject it. This reduces exposure to detected attacks but does not establish
 that accepted messages are safe or authorized instructions.
 
+**Optional Jev tags.** `JEV_TAGGING_ENABLED=1` sends names and text to TypeSafe
+to label new plaintext messages, independently of screening. Tags and model
+predictions do not establish trust. Tagging alone accepts without labels on
+provider failure; enabled moderation still fails closed. See [tagging](tagging.md).
+
 **Metadata and retention.** Participants see timestamps and source IPs when a
 trusted proxy supplies them. The server also sees sizes and traffic patterns.
 Deletion does not erase participant copies, backups, or replicated history.

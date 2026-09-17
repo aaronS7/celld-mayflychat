@@ -11,7 +11,8 @@ MIT license
 This checkout also includes a native TypeScript implementation for **celld 0.5**:
 one Durable Object per chat, with plaintext stored by default and optional
 end-to-end encryption. Optional TypeSafe Jev screening rejects flagged plaintext
-messages before storage; encryption always disables Jev.
+messages before storage; optional [automatic tagging](celld/docs/tagging.md) adds
+message labels. Encryption always disables Jev.
 Run `npm ci && npm run dev`; Go and Docker are not needed to run the native server.
 The served browser and Node/Python/Go clients support both modes. See
 [environment variables and implications](celld/docs/configuration.md),

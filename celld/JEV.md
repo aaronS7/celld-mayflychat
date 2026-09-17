@@ -1,4 +1,4 @@
-# Encryption and optional Jev screening
+# Encryption and optional Jev screening and tagging
 
 The native celld application defaults to **plaintext messages**, with Jev off.
 The [environment-variable reference](docs/configuration.md) covers all settings,
@@ -9,9 +9,16 @@ authentication. Plaintext mode lets the server operator read stored messages.
 
 | `ENCRYPTION_ENABLED` | `JEV_ENABLED` | Result |
 | --- | --- | --- |
-| `0` or unset | `0` or unset | Plaintext messages; no TypeSafe calls |
+| `0` or unset | `0` or unset | Plaintext messages; no screening |
 | `0` or unset | `1` | Plaintext screened before storage; API key required |
 | `1` | Any value | End-to-end encryption; Jev is never called |
+
+Independently set `JEV_TAGGING_ENABLED=1` for automatic research, question,
+information, command, and undetermined labels. It defaults off. Tagging sends
+plaintext to TypeSafe even without moderation; encryption disables it too.
+See [automatic tagging](docs/tagging.md) for the 75%/60%/30% rules, multi-label
+output, persistence, and optional-enrichment failure behavior. Both features
+share one provider call when enabled together.
 
 Flags use `0` and `1`. Other encryption values fail closed. An invalid Jev flag
 fails closed in plaintext mode. Encryption takes precedence over Jev, including
@@ -31,22 +38,25 @@ The fleet helper translates these environment variables into Worker bindings:
 
 ```sh
 # Default behavior: plaintext, without Jev.
-ENCRYPTION_ENABLED=0 JEV_ENABLED=0 npm run fleet:deploy
+ENCRYPTION_ENABLED=0 JEV_ENABLED=0 JEV_TAGGING_ENABLED=0 npm run fleet:deploy
 
 # Encrypted messages; Jev stays off even if JEV_ENABLED was previously 1.
 ENCRYPTION_ENABLED=1 npm run fleet:deploy
 
 # Plaintext with enforced screening, after supplying the API key.
 ENCRYPTION_ENABLED=0 JEV_ENABLED=1 npm run fleet:deploy
+
+# Enable automatic tags alongside screening.
+ENCRYPTION_ENABLED=0 JEV_ENABLED=1 JEV_TAGGING_ENABLED=1 npm run fleet:deploy
 ```
 
-The helper retains the last selected flags for later deployments. For screening,
+The helper retains the last selected flags for later deployments. For screening or tagging,
 put `TYPESAFE_API_KEY=...` in `typesafe.celld.env` at the repository root with
 permissions `0600`, or supply it in the deploying process's environment. The
 file is ignored by Git. `TYPESAFE_MODEL` optionally pins a model; the default is
 `jev-latest`.
 
-The helper loads the credential only for plaintext screening. It excludes it
+The helper loads the credential only for plaintext screening or tagging. It excludes it
 from `fleet.json`, status output, public settings, browser code, and client
 downloads. celld 0.5 deploys it as a server-side Worker variable: it is present in
 the private generated deployment configuration and the fleet's deployment data
@@ -66,8 +76,9 @@ Modified clients cannot bypass the check by supplying harmless text alongside
 different ciphertext. Names, titles, replies, and reactions use the same message
 path; there is no client-controlled moderation exemption.
 
-The adapter sends two Noul questions to TypeSafe's `POST /v1/systemone`: prompt
-injection and data exfiltration. Either attack probability **greater than or
+Moderation sends two Noul questions to TypeSafe's `POST /v1/systemone`: prompt
+injection and data exfiltration (plus five independent label questions when
+tagging is enabled). Either attack probability **greater than or
 equal to 0.70** rejects the message with HTTP 422, `code:moderation_rejected`,
 and `posted:false`. Both must be below 0.70. Noul is the probability of “yes”; it
 is not the distinct Choice/Score `confidence` statistic.
@@ -147,6 +158,7 @@ the current clients for plaintext mode. The upstream Go server stays encrypted.
 ```sh
 npm run check
 npm run test:moderation
+npm run test:tagging
 CHROME_BIN=/path/to/chrome npm run test:policy
 ```
 
@@ -154,6 +166,9 @@ Adapter tests cover the threshold, response validation, metadata minimization,
 and bounded failures. Policy tests run the full Worker in celld 0.5 with a local
 provider fixture, exercise both formats, real browsers and all three CLI
 languages, and test concurrency, recreation, expiry, and mode switches.
+Tagging additionally covers exact thresholds, independent labels, failure
+isolation, persistence, and display. See [tagging verification](TAGGING-VERIFICATION.md)
+for fixture and real-provider results.
 Live TypeSafe checks on the three-node fleet passed with the supplied key on
 2026-09-17: ordinary conversation and defensive discussion were accepted;
 prompt injection and data exfiltration samples were rejected without appending.

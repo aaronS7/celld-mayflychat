@@ -271,6 +271,12 @@ function row(ev, text, from, reply, join){
   const replyTarget = reply
     ? `<small class="reply-target"><a href="#m${reply.to}">↩ #${reply.to}</a></small>`
     : '';
+  // Only server-generated plaintext metadata supplies Jev labels. Use a fixed
+  // vocabulary and escaping; encrypted inner messages cannot claim Jev tags.
+  const tags = !transportConfig().encryption && Array.isArray(ev.tags)
+    ? ['research', 'question', 'information', 'command', 'undetermined'].filter(tag => ev.tags.includes(tag)) : [];
+  const tagMarkup = tags.length ? '<div class="message-tags" aria-label="Jev automatic tags">' +
+    tags.map(tag => `<span class="message-tag" title="Automatically tagged by Jev">${esc(tag)}</span>`).join('') + '</div>' : '';
   d.innerHTML = `<div class="hdr"><b title="${esc(from)}">${esc(from)}</b><span>` +
     '<button class="act addreact" title="Add reaction">🙂<small>+</small></button>' +
     `<button class="act reply" title="Reply to #${ev.seq}" data-id="${ev.seq}">↩</button> ` +
@@ -278,7 +284,7 @@ function row(ev, text, from, reply, join){
     `<code class="src" title="${esc(sourceHint)}">${esc(ev.src)}</code> · ` +
     `<time datetime="${esc(ev.ts)}" title="${t.toLocaleString()}">` +
     `${t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</time></span></div>` +
-    replyTarget + '<div class="txt"></div><div class="reacts" hidden></div>';
+    replyTarget + '<div class="txt"></div>' + tagMarkup + '<div class="reacts" hidden></div>';
   const body = d.querySelector('.txt');
   if (join) {
     body.className = 'txt join';

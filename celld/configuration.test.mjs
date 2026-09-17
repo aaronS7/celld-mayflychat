@@ -15,17 +15,20 @@ test("configuration never silently downgrades encryption or enables Jev with it"
   await promisify(execFile)("esbuild", [new URL("./native/settings.ts", import.meta.url).pathname,
     "--bundle", "--platform=neutral", "--format=esm", "--outfile=" + bundle]);
   const { settings } = await import(pathToFileURL(bundle));
-  assert.deepEqual(settings({}), { protocol: 2, encryption: false, moderation: false, postingAllowed: true });
+  assert.deepEqual(settings({}), { protocol: 2, encryption: false, moderation: false, tagging: false, postingAllowed: true });
   assert.equal(settings({ JEV_ENABLED: "1" }).moderation, true);
+  assert.equal(settings({ JEV_TAGGING_ENABLED: "1" }).tagging, true);
+  assert.equal(settings({ JEV_TAGGING_ENABLED: "1" }).moderation, false);
   for (const flag of [undefined, "0", "1", "invalid"]) {
-    assert.deepEqual(settings({ ENCRYPTION_ENABLED: "1", JEV_ENABLED: flag }), { protocol: 2, encryption: true, moderation: false, postingAllowed: true });
+    assert.deepEqual(settings({ ENCRYPTION_ENABLED: "1", JEV_ENABLED: flag, JEV_TAGGING_ENABLED: flag }), { protocol: 2, encryption: true, moderation: false, tagging: false, postingAllowed: true });
   }
-  for (const env of [{ ENCRYPTION_ENABLED: "true" }, { ENCRYPTION_ENABLED: "" }, { JEV_ENABLED: "bad" }]) {
+  for (const env of [{ ENCRYPTION_ENABLED: "true" }, { ENCRYPTION_ENABLED: "" }, { JEV_ENABLED: "bad" }, { JEV_TAGGING_ENABLED: "true" }, { JEV_TAGGING_ENABLED: "" }]) {
     assert.throws(() => settings(env), error => error.status === 503 && error.code === "configuration_error");
   }
-  const old = settings({ ENCRYPTION_ENABLED: "0", JEV_ENABLED: "1" }, true);
+  const old = settings({ ENCRYPTION_ENABLED: "0", JEV_ENABLED: "1", JEV_TAGGING_ENABLED: "1" }, true);
   assert.equal(old.encryption, true);
   assert.equal(old.moderation, false);
+  assert.equal(old.tagging, false);
   assert.equal(old.postingAllowed, false);
 });
 
@@ -52,7 +55,7 @@ test("retention requires explicit decimal seconds and preserves millisecond prec
 
 test("fleet deploy keeps TypeSafe credentials in private bindings and removes them when unused", async t => {
   const directory = await mkdtemp(join(tmpdir(), "mayfly-deployment-settings-"));
-  const names = ["ENCRYPTION_ENABLED", "JEV_ENABLED", "TYPESAFE_API_KEY", "TYPESAFE_MODEL"];
+  const names = ["ENCRYPTION_ENABLED", "JEV_ENABLED", "JEV_TAGGING_ENABLED", "TYPESAFE_API_KEY", "TYPESAFE_MODEL"];
   const before = Object.fromEntries(names.map(name => [name, process.env[name]]));
   t.after(async () => {
     for (const name of names) {
@@ -79,4 +82,16 @@ test("fleet deploy keeps TypeSafe credentials in private bindings and removes th
   assert.equal(deployed.vars.JEV_ENABLED, "1", "Preserve the operator's selection while encryption suppresses its use");
   await fleet.deploy({ ENCRYPTION_ENABLED: "0", JEV_ENABLED: "0" });
   assert.ok(!("TYPESAFE_API_KEY" in deployed.vars));
+  process.env.JEV_TAGGING_ENABLED = "1";
+  await fleet.deploy();
+  assert.equal(deployed.vars.JEV_TAGGING_ENABLED, "1");
+  assert.equal(deployed.vars.TYPESAFE_API_KEY, key, "Tagging alone loads the key");
+  delete process.env.JEV_TAGGING_ENABLED;
+  await fleet.deploy();
+  assert.equal(deployed.vars.JEV_TAGGING_ENABLED, "1", "Preserve tagging on later deployments");
+  await fleet.deploy({ ENCRYPTION_ENABLED: "1" });
+  assert.ok(!("TYPESAFE_API_KEY" in deployed.vars));
+  await fleet.deploy({ ENCRYPTION_ENABLED: "0", JEV_TAGGING_ENABLED: "0" });
+  assert.ok(!("TYPESAFE_API_KEY" in deployed.vars));
+  await assert.rejects(fleet.deploy({ JEV_TAGGING_ENABLED: "true" }), /JEV_TAGGING_ENABLED/);
 });

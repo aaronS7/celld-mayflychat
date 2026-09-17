@@ -31,6 +31,7 @@ test("Jev adapter runs inside actual celld: thresholds, failure, and disabled mo
   const port = portPicker.address().port;
   await new Promise(resolve => portPicker.close(resolve));
   await cp(new URL("./native/moderation.ts", import.meta.url), join(directory, "moderation.ts"));
+  await cp(new URL("./native/tagging.ts", import.meta.url), join(directory, "tagging.ts"));
   await writeFile(join(directory, "wrangler.json"), JSON.stringify({ name: "mayfly-jev-adapter-test", main: "worker.ts", compatibility_date: "2026-09-15" }));
   await writeFile(join(directory, "worker.ts"), `
 import { screenMessage, ModerationUnavailable } from "./moderation.ts";

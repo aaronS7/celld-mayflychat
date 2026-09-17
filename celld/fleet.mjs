@@ -92,16 +92,18 @@ export class Fleet {
     const source = await readFile(join(root, "wrangler.jsonc"), "utf8");
     const config = JSON.parse(source.replace(/^\s*\/\/.*$/gm, ""));
     if (this.state.trustProxy) config.vars.TRUST_PROXY = "1";
-    for (const name of ["ENCRYPTION_ENABLED", "JEV_ENABLED", "TYPESAFE_MODEL"]) {
+    for (const name of ["ENCRYPTION_ENABLED", "JEV_ENABLED", "JEV_TAGGING_ENABLED", "TYPESAFE_MODEL"]) {
       const value = process.env[name] ?? this.state.vars?.[name];
       if (value !== undefined) config.vars[name] = value;
     }
     Object.assign(config.vars, vars);
     assert.ok(["0", "1"].includes(config.vars.ENCRYPTION_ENABLED), "ENCRYPTION_ENABLED must be 0 or 1");
-    if (config.vars.ENCRYPTION_ENABLED === "0") assert.ok(["0", "1"].includes(config.vars.JEV_ENABLED), "JEV_ENABLED must be 0 or 1");
+    if (config.vars.ENCRYPTION_ENABLED === "0") {
+      for (const name of ["JEV_ENABLED", "JEV_TAGGING_ENABLED"]) assert.ok(["0", "1"].includes(config.vars[name]), `${name} must be 0 or 1`);
+    }
     if (config.vars.ENCRYPTION_ENABLED === "1") {
       delete config.vars.TYPESAFE_API_KEY;
-    } else if (config.vars.JEV_ENABLED === "1") {
+    } else if (config.vars.JEV_ENABLED === "1" || config.vars.JEV_TAGGING_ENABLED === "1") {
       let key = process.env.TYPESAFE_API_KEY;
       if (!key) {
         const file = join(root, "typesafe.celld.env");

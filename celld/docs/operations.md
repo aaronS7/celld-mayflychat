@@ -16,6 +16,9 @@ The original Go sources remain a protocol reference. The native namespace is
 `ENCRYPTION_ENABLED=0` (default) stores plaintext; `1` stores client-encrypted
 envelopes and always disables Jev. In plaintext mode, `JEV_ENABLED=1` requires
 `TYPESAFE_API_KEY` and screens messages before append. API failures fail closed.
+`JEV_TAGGING_ENABLED=1` independently adds [automatic labels](tagging.md), using
+the same credential and one combined provider call when moderation is on.
+Tagging failures leave messages untagged without bypassing moderation.
 Use `.dev.vars` only for local development, or private Worker deployment
 bindings for fleet operation. Arbitrary daemon environment variables do not
 automatically become Worker bindings. See the

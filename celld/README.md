@@ -2,12 +2,13 @@
 
 The default configuration runs a TypeScript Worker and **one SQLite Durable
 Object per chat**. It stores plaintext by default, with optional end-to-end
-encryption and optional TypeSafe Jev screening. Encryption always disables Jev.
+encryption and optional TypeSafe Jev screening and tagging. Encryption always disables Jev.
 It does not launch Go or a container. The Go server remains the encrypted protocol
 reference; the browser and all six served clients support the selected mode.
 See the [environment-variable reference](docs/configuration.md) for defaults,
 accepted values, precedence, and privacy implications, and [Jev details](JEV.md)
-for screening and operator logs.
+for screening and operator logs. [Automatic tags](docs/tagging.md) describes
+`JEV_TAGGING_ENABLED`, label thresholds, and failure behavior.
 
 ```mermaid
 flowchart LR

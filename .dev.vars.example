@@ -2,8 +2,9 @@
 # All defaults and implications: celld/docs/configuration.md
 ENCRYPTION_ENABLED=0
 JEV_ENABLED=0
+JEV_TAGGING_ENABLED=0
 RETENTION_SECONDS=86400
 TRUST_PROXY=0
-# Required only when encryption is off and JEV_ENABLED=1:
+# Used when encryption is off and either Jev flag is 1:
 # TYPESAFE_API_KEY=your-api-key
 # TYPESAFE_MODEL=jev-latest

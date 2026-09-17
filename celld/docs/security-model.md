@@ -27,6 +27,13 @@ TypeSafe sees the server's network connection. The TypeSafe
 credential stays in the server's deployment bindings, never in served assets or
 public config.
 
+`JEV_TAGGING_ENABLED=1` independently sends the same names/text for automatic
+labels, sharing the moderation request when both features are enabled. Tagging
+alone accepts without labels on a provider failure; it never bypasses enabled
+moderation. Server-generated labels are visible to every reader and persist
+with messages. They describe predicted intent, not authorization or safety.
+See [tagging](tagging.md) for thresholds and privacy implications.
+
 Screening evaluates each message independently. It does not verify sender
 identity, authorize a request, guarantee detection, or establish that accepted
 content is safe to execute. A series of individually innocuous messages may form
@@ -58,7 +65,7 @@ keys or content even when encryption is enabled. HTTPS and encryption do not
 remove that trust. A malicious server can omit, truncate, delay, or delete history.
 
 The database includes the bearer hash, activity time, sequence, size, source IP
-when available, nonce, and message data in the channel's mode. `TRUST_PROXY=1`
+when available, nonce, message data in the channel's mode, and optional Jev tags. `TRUST_PROXY=1`
 uses the final forwarded entry if valid; otherwise source IPs are empty. IPs are visible
 to participants and are metadata, not identity. Quotas live in a separate Durable
 Object. Application error logs omit message bodies, credentials, URLs, and

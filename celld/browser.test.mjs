@@ -9,7 +9,7 @@ test("real Chrome creates, chats across tabs, renders safely, and deletes on nat
   assert.ok(process.env.CHROME_BIN, "Set CHROME_BIN to run the real browser check");
   const dir = await mkdtemp(join(tmpdir(), "mayfly-native-browser-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
-  const config = { chrome: process.env.CHROME_BIN, profile: join(dir, "profile"), base: process.env.MAYFLY_BASE_URL || "http://127.0.0.1:9890", rejectionText: process.env.MAYFLY_TEST_REJECTION_TEXT };
+  const config = { chrome: process.env.CHROME_BIN, profile: join(dir, "profile"), base: process.env.MAYFLY_BASE_URL || "http://127.0.0.1:9890", rejectionText: process.env.MAYFLY_TEST_REJECTION_TEXT, tags: process.env.MAYFLY_TEST_TAGS ? JSON.parse(process.env.MAYFLY_TEST_TAGS) : undefined };
   const harness = await readFile(new URL("../srv/testdata/chrome.cjs", import.meta.url), "utf8");
   const exercise = String.raw`
   (async () => {
@@ -45,6 +45,15 @@ test("real Chrome creates, chats across tabs, renders safely, and deletes on nat
     await send(alice, 'Hello **native celld** 👋');
     await until(()=>evaluate(bob, "document.getElementById('log').textContent.includes('Hello native celld 👋')"), 'cross-tab delivery');
     assert.equal(await evaluate(bob, "document.querySelector('#log strong').textContent"), 'native celld');
+    if (config.tags) {
+      assert.deepEqual(await evaluate(bob, "[...document.querySelectorAll('#m0 .message-tag')].map(el=>el.textContent)"), config.tags);
+      await cdp('Page.reload', {}, bob.sessionId);
+      await until(()=>evaluate(bob, "document.querySelectorAll('#m0 .message-tag').length > 0"), 'tags restored after reload');
+      assert.deepEqual(await evaluate(bob, "[...document.querySelectorAll('#m0 .message-tag')].map(el=>el.textContent)"), config.tags);
+      // Even hostile metadata must not render HTML or arbitrary tag names.
+      await evaluate(bob, "row({seq:999,ts:new Date().toISOString(),src:'',tags:['research','<img src=x onerror=window.pwned=1>','research']},'safe','test',null,null)");
+      assert.deepEqual(await evaluate(bob, "[...document.querySelectorAll('#m999 .message-tag')].map(el=>el.textContent)"), ['research']);
+    }
     await send(bob, '/title Native durable chat');
     await until(()=>evaluate(alice, "document.getElementById('title').textContent==='Native durable chat'"), 'title delivered');
     await send(bob, '<img src=x onerror="window.pwned=1"><script>window.pwned=1</script>');

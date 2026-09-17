@@ -213,6 +213,21 @@ func render(gcm cipher.AEAD, id string, event map[string]json.RawMessage) (map[s
 		text, textOK := textField(event["text"])
 		if _, encrypted := event["ct"]; !encrypted && nameOK && textOK && validFrom(name) {
 			row["from"], row["text"] = name, text
+			var supplied []string
+			if json.Unmarshal(event["tags"], &supplied) == nil {
+				var tags []string
+				for _, tag := range []string{"research", "question", "information", "command", "undetermined"} {
+					for _, candidate := range supplied {
+						if candidate == tag {
+							tags = append(tags, tag)
+							break
+						}
+					}
+				}
+				if len(tags) > 0 {
+					row["tags"] = tags
+				}
+			}
 		}
 		return row, nil
 	}

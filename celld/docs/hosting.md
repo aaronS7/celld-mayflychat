@@ -6,6 +6,8 @@ Python, and Go command-line clients negotiate the selected message format.
 Messages are plaintext by default. Set Worker variable `ENCRYPTION_ENABLED=1`
 for the original local encryption; this always disables Jev. Plaintext can be
 screened with `JEV_ENABLED=1` and a server-side `TYPESAFE_API_KEY`.
+`JEV_TAGGING_ENABLED=1` independently enables [automatic message tags](tagging.md)
+with the same provider credential. Encryption disables tagging as well.
 
 From a checkout containing `celld/native/worker.ts`:
 

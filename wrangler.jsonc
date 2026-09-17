@@ -15,6 +15,7 @@
     // Plaintext messages by default. 1 enables end-to-end encryption and disables Jev.
     "ENCRYPTION_ENABLED": "0",
     "JEV_ENABLED": "0",
+    "JEV_TAGGING_ENABLED": "0",
     "RETENTION_SECONDS": "86400"
   }
 }
