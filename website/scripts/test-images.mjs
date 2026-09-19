@@ -52,33 +52,46 @@ const harness = await readFile(new URL('../../srv/testdata/chrome.cjs', import.m
 const exercise = String.raw`
 const control = async values => { await fetch(config.origin + '/__control', { method: 'POST', body: JSON.stringify(values) }); };
 (async () => { try {
-  const { targetInfos } = await cdp('Target.getTargets');
-  const tab = await attach(targetInfos.find(t => t.type === 'page').targetId);
-  await cdp('Network.enable', {}, tab.sessionId);
-  await cdp('Network.setCacheDisabled', { cacheDisabled: true }, tab.sessionId);
+  let tab, context;
+  const newTab = async scenario => {
+    // A fresh context also isolates decoded-image caches and live media listeners.
+    if (context) await cdp('Target.disposeBrowserContext', { browserContextId: context });
+    context = (await cdp('Target.createBrowserContext')).browserContextId;
+    const { targetId } = await cdp('Target.createTarget', { url: 'about:blank', browserContextId: context });
+    tab = await attach(targetId);
+    await cdp('Network.enable', {}, tab.sessionId);
+    await cdp('Network.setCacheDisabled', { cacheDisabled: true }, tab.sessionId);
+    const setup = 'localStorage.'+(scenario.saved?'setItem("vitepress-theme-appearance",'+JSON.stringify(scenario.saved)+')':'removeItem("vitepress-theme-appearance")')+';window.wrongPaint=[];window.pageErrors=[];window.addEventListener("error",e=>{if(e.message)pageErrors.push(e.message)});window.addEventListener("unhandledrejection",e=>pageErrors.push(String(e.reason)));function inspect(){const theme=document.documentElement?.classList.contains("dark")?"dark":"light";for(const img of document.querySelectorAll(".demo-image img")){if(img.naturalWidth&&getComputedStyle(img).visibility==="visible"&&!img.src.endsWith("-"+theme+".png"))wrongPaint.push(img.src);}requestAnimationFrame(inspect)}requestAnimationFrame(inspect);';
+    await cdp('Page.addScriptToEvaluateOnNewDocument', { source: setup }, tab.sessionId);
+    await cdp('Emulation.setDeviceMetricsOverride', { width: scenario.mobile ? 390 : 1440, height: scenario.mobile ? 844 : 1040, deviceScaleFactor: 1, mobile: scenario.mobile }, tab.sessionId);
+    await cdp('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scenario.system }] }, tab.sessionId);
+  };
   const probe = () => evaluate(tab, '(()=>{const f=document.querySelector(".demo-image-frame"),i=f?.querySelector("img");return {theme:document.documentElement?.classList.contains("dark")?"dark":"light",src:i?.getAttribute("src"),visible:!!i?.naturalWidth&&getComputedStyle(i).visibility==="visible",busy:f?.getAttribute("aria-busy"),label:f?.textContent.trim(),height:f?.getBoundingClientRect().height,href:f?.getAttribute("href"),spinner:f?.querySelector(".demo-image-spinner")?getComputedStyle(f.querySelector(".demo-image-spinner")).animationName:null};})()');
-  const ready = theme => until(async()=>{const p=await probe();return p.theme===theme&&p.visible&&p.src.endsWith('-'+theme+'.png')&&p.busy==='false';},theme+' image ready');
-  const placeholder = () => until(async()=>{const p=await probe();return p.height>100&&!p.visible&&p.label==='Loading screenshot…'&&p.busy==='true';},'loading placeholder');
+  const waitFor = async (check, label) => {
+    let last;
+    try { return await until(async () => { last = await probe(); return check(last); }, label); }
+    catch (error) { throw new Error(error.message + '; last image state: ' + JSON.stringify(last), { cause: error }); }
+  };
+  const ready = theme => waitFor(p=>p.theme===theme&&p.visible&&p.src.endsWith('-'+theme+'.png')&&p.busy==='false',theme+' image ready');
+  const placeholder = () => waitFor(p=>p.height>100&&!p.visible&&p.label==='Loading screenshot…'&&p.busy==='true','loading placeholder');
   const toggle = () => evaluate(tab, 'document.querySelector(".VPSwitchAppearance").click()');
-  let injected;
   for (const scenario of [
     { system: 'dark', saved: null, expected: 'dark', mobile: false },
     { system: 'light', saved: 'dark', expected: 'dark', mobile: true },
     { system: 'dark', saved: 'light', expected: 'light', mobile: false },
   ]) {
-    if(injected) await cdp('Page.removeScriptToEvaluateOnNewDocument', {identifier:injected}, tab.sessionId);
-    const setup = 'localStorage.'+(scenario.saved?'setItem("vitepress-theme-appearance",'+JSON.stringify(scenario.saved)+')':'removeItem("vitepress-theme-appearance")')+';window.wrongPaint=[];window.pageErrors=[];window.addEventListener("error",e=>{if(e.message)pageErrors.push(e.message)});window.addEventListener("unhandledrejection",e=>pageErrors.push(String(e.reason)));function inspect(){const theme=document.documentElement.classList.contains("dark")?"dark":"light";for(const img of document.querySelectorAll(".demo-image img")){if(img.naturalWidth&&getComputedStyle(img).visibility==="visible"&&!img.src.endsWith("-"+theme+".png"))wrongPaint.push(img.src);}requestAnimationFrame(inspect)}requestAnimationFrame(inspect);';
-    injected=(await cdp('Page.addScriptToEvaluateOnNewDocument',{source:setup},tab.sessionId)).identifier;
-    await control({ scripts: true, images: false, failure: false });
-    await cdp('Emulation.setDeviceMetricsOverride',{width:scenario.mobile?390:1440,height:scenario.mobile?844:1040,deviceScaleFactor:1,mobile:scenario.mobile},tab.sessionId);
-    await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:scenario.system}]},tab.sessionId);
+    await newTab(scenario);
+    // The homepage video shares the light screenshot as its poster, so hold
+    // image downloads from navigation onward, including that shared request.
+    await control({ scripts: true, images: true, failure: false });
     await cdp('Page.navigate',{url:config.base},tab.sessionId);
     await placeholder();
     const before=await probe();assert.equal(before.theme,scenario.expected);
+    assert.equal(before.src,undefined,'no screenshot selected before client theme resolution');
     await sleep(120);
     assert.deepEqual(await evaluate(tab,'wrongPaint'),[],'no opposite-theme screenshot before hydration');
-    await control({scripts:false,images:true});
-    await until(async()=>Boolean((await probe()).src),'theme resolved after hydration');
+    await control({scripts:false});
+    await waitFor(p=>Boolean(p.src),'theme resolved after hydration');
     await placeholder();
     await control({images:false});await ready(scenario.expected);
     assert.ok(Math.abs((await probe()).height-before.height)<1,'reserved image area prevents layout shift');
@@ -92,15 +105,16 @@ const control = async values => { await fetch(config.origin + '/__control', { me
   await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:'dark'},{name:'prefers-reduced-motion',value:'reduce'}]},tab.sessionId);
   assert.equal((await probe()).spinner,'none','loader respects reduced motion');
   await toggle();
-  await until(async()=>{const p=await probe();return p.theme==='light'&&(!p.visible||p.src.endsWith('-light.png'));},'cached light image or placeholder');
+  await waitFor(p=>p.theme==='light'&&(!p.visible||p.src.endsWith('-light.png')),'cached light image or placeholder');
   await toggle();await placeholder();
   await control({images:false});await ready('dark');
   assert.deepEqual(await evaluate(tab,'wrongPaint'),[],'rapid switches never expose stale imagery');
   console.log('PASS delayed and rapid theme switches, reduced motion');
   // A failed screenshot must finish loading with readable feedback.
+  await newTab({ system: 'light', saved: 'light', mobile: false });
   await cdp('Page.navigate',{url:config.base},tab.sessionId);
   await ready('light');await control({failure:true});await toggle();
-  await until(async()=>{const p=await probe();return p.label==='Screenshot unavailable'&&p.busy==='false'&&!p.visible;},'image failure feedback');
+  await waitFor(p=>p.label==='Screenshot unavailable'&&p.busy==='false'&&!p.visible,'image failure feedback');
   await control({failure:false});await toggle();await ready('light');await toggle();await ready('dark');
   console.log('PASS failed image feedback and recovery');
   // Lazy screenshots, including an initially collapsed mobile example.
