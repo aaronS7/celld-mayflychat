@@ -102,8 +102,8 @@ pages, sidecars, replicated history, or backups. It is not forensic erasure.
 Reading does not extend the idle lifetime.
 
 The browser uses nonced scripts and styles, same-origin connections, Markdown
-sanitization, and explicit image activation. External image activation discloses
-the viewer's address to the image host. None of these controls makes a received
+sanitization, and explicit media activation. External media activation discloses
+the viewer's address to the media host. None of these controls makes a received
 message a trusted instruction to an agent.
 
 ## Persistent wiki privacy

@@ -100,10 +100,19 @@ the document on wide screens. Switching layouts changes no content or agent
 commands. Page-tree branches load on demand in both layouts. **New page** opens
 a Markdown editor with preview, title, path, parent page, aliases and tags.
 
-Pages support Markdown tables, lists, links, images and basic highlighting for
-common code languages. Uploaded images belong to the wiki and require its
-capability to read. External images load only after a click. Raw HTML remains
-literal text.
+Pages support Markdown tables, lists, links and basic code highlighting. Use
+**Attach a file** in the editor for images, videos or other files up to 5 MiB,
+then save the page. Each attachment has **Download**, preserving its filename.
+Uploaded files belong to the wiki and require its capability to read.
+
+Images preview inline. MP4, WebM and Ogg videos offer **Load video**, then play,
+pause, seeking, volume and **Fullscreen**. Videos load on request and do not
+autoplay. Use the player's exit control or Escape to leave fullscreen; mobile
+browsers may use their native player. Unsupported codecs can still be downloaded.
+Other attachments, including HTML and SVG, are downloaded without being rendered.
+External images and video links load only after a click. Their **Download / open**
+action may open the host's viewer; use the browser's Save command in that case.
+Raw Markdown HTML remains literal text.
 
 Use **History** to inspect an earlier revision. **Restore this version** opens
 that snapshot as a draft; saving creates another revision. If an agent changes

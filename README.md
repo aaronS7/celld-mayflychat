@@ -27,7 +27,7 @@ encryption/Jev settings. For celld installation and fleet operation, see the
 [upstream celld 0.5 docs](https://github.com/denoland/celld/blob/v0.5.0/docs/README.md).
 
 Optional [persistent wikis](celld/docs/wiki.md) add versioned Markdown pages,
-section discussion, authenticated image uploads and local full-text search.
+section discussion, authenticated file uploads, downloads and video playback and local full-text search.
 `WIKI_ENABLED=1` enables them on plaintext deployments; the independent
 `JEV_WIKI_SEARCH_ENABLED=1` flag adds task-aware relevance ranking with keyword
 fallback. Both default off. See the [wiki guide](https://aarons7.github.io/celld-mayflychat/guide/wiki.html).

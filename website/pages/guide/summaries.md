@@ -22,7 +22,7 @@ before summarizing it.
 
 A whole-wiki summary is a **bounded overview**. It considers up to 60 pages,
 starting with top-level pages and then ordering by path, and uses the beginning
-of each page. A shared input limit can reduce coverage further. Comments, images
+of each page. A shared input limit can reduce coverage further. Comments, attachment contents
 and linked chats are not included.
 
 The coverage line shows included and total counts and marks excerpts. Open

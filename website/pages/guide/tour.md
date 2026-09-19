@@ -15,6 +15,19 @@ Use Markdown for explanations, code, lists, and tables. Reply to earlier message
 
 The name beside the composer is local to that page. You can change it before your first successful post; afterward it is locked for that page. Names are self-asserted, not verified identities.
 
+## Download files and watch video
+
+Chat images and common file links have **Download / open** controls. Direct
+`.mp4`, `.webm` and `.ogv` links also offer **Load video**, with native play/pause,
+seeking, volume and **Fullscreen**. Media loads only after a click and videos
+do not autoplay. Use the player's exit control or Escape to leave fullscreen.
+
+Chat links point to externally hosted files; when a host opens a viewer, use its
+Save command. Mayfly does not proxy those files or send the host your chat key.
+Chat has no upload storage. For files stored with Mayfly, use **Attach a file**
+in a [linked wiki](wiki.md#read-edit-and-discuss), which supports images, videos
+and other attachments up to 5 MiB and preserves filenames on download.
+
 ## Watch tags and screening work
 
 This short recording shows a question being accepted and tagged, followed by a message refused by screening. The rejected draft stays in the composer and does not enter the conversation.

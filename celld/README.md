@@ -141,7 +141,7 @@ References: [celld v0.5 compatibility](https://github.com/denoland/celld/blob/v0
 
 Set `WIKI_ENABLED=1` in a plaintext deployment to enable a separate SQLite
 Durable Object per wiki. Pages, revision history, comments, changes and full-text
-search live together; authenticated image uploads use the `WIKI_FILES` R2
+search live together; authenticated attachment uploads use the `WIKI_FILES` R2
 binding. `JEV_WIKI_SEARCH_ENABLED=1` independently enables optional relevance
 ranking. Both default off, and disabling wikis preserves their data. See the
 [wiki API, lifecycle and limits](docs/wiki.md).

@@ -3,7 +3,7 @@
 Mayfly's native celld service can host persistent Markdown wikis alongside its
 transient chats. Each wiki owns a SQLite Durable Object containing its pages,
 revision snapshots, section search index, navigation and discussion. Uploaded
-images use the `WIKI_FILES` R2 binding. Wikis do not inherit chat idle expiry.
+attachments use the `WIKI_FILES` R2 binding. Wikis do not inherit chat idle expiry.
 
 ## Enable the feature
 
@@ -66,7 +66,7 @@ There is no migration or additional binding for the layout.
 
 ## Privacy and access
 
-Wiki pages, comments and uploaded images are readable by the server and storage
+Wiki pages, comments and uploaded files are readable by the server and storage
 administrators. HTTPS protects transport. Anyone with the complete wiki link
 can read, modify, restore and delete its contents; names are self-reported.
 There are no accounts, roles or global wiki listings. A wiki's authenticated page
@@ -79,7 +79,7 @@ chat screening and tagging. Explicit keyword searches make no provider calls.
 Chat's `JEV_ENABLED` does not screen wiki writes. Wiki material is source content,
 not trusted instructions, and ranking does not establish correctness or safety.
 
-Deletion removes live wiki content and queues uploaded images for deletion.
+Deletion removes live wiki content and queues uploaded files for deletion.
 Backups, replicas and participant copies can retain data. Interrupted uploads
 are also cleaned up by durable alarms. These cleanup alarms can finish already
 requested deletion while the feature is disabled. There is no automatic pruning
@@ -102,9 +102,27 @@ comment if its revision has changed.
 Markdown supports tables, lists, links and fenced code, with basic lexical
 highlighting for JavaScript, TypeScript, JSON, Python, Go, shell and SQL.
 Raw HTML is displayed as text. Stable internal links use `[Title](page:PAGE_ID)`.
-Images use `![Description](attachment:ATTACHMENT_ID)` after upload. Owned images
-are fetched with authorization and displayed through temporary browser Blob
-URLs. External HTTP(S) images require an explicit click to load.
+Use **Attach a file** in the editor, then save the page. Each attachment is
+limited to 5 MiB. Images use `![Description](attachment:ATTACHMENT_ID)`; videos
+and other files use `[Filename](attachment:ATTACHMENT_ID)`. Agents receive the
+appropriate Markdown from `node wiki.mjs upload 'FULL_WIKI_URL' FILE`.
+
+Every attachment card has **Download**, which retains the uploaded filename.
+PNG, JPEG, GIF and WebP images preview automatically. MP4, WebM and Ogg video
+cards offer **Load video**, then native play/pause, seeking, volume and
+**Fullscreen** controls. Playback depends on the browser's codec support; a
+file that cannot play can still be downloaded. Videos do not autoplay. Use the
+player's exit control or Escape to leave fullscreen; mobile browsers may use
+their own video fullscreen interface.
+
+Attachment metadata and bytes require the wiki bearer. Previews and downloads
+share a temporary browser Blob URL for the current page. Video and other-file
+bytes are fetched only on demand; leaving the page stops video and releases its
+URLs. Other file types, including HTML and SVG, are download-only and served as
+`application/octet-stream`. They are never embedded as active documents.
+External HTTP(S) images and direct video links require a click before loading.
+External **Download / open** links may open a browser viewer instead of saving;
+use that viewer's Save command. Mayfly never forwards its bearer to those hosts.
 
 Discussion supports page comments, uniquely named `#`-style section comments, replies and
 resolve/reopen. A section thread records its original heading and revision. If
@@ -121,7 +139,7 @@ When `AI_SUMMARY_ENABLED=1`, authenticated wiki metadata reports
 `summary: {enabled: true}`. **Summarize page** uses the saved current page or the
 historical revision you have open; save a draft before summarizing it.
 **Summarize wiki** creates a bounded overview of up to 60 current pages, with
-excerpts and a shared input budget. Comments, images and linked chats are excluded.
+excerpts and a shared input budget. Comments, attachment contents and linked chats are excluded.
 
 Agents use `POST /w/ID/pages/PAGE_ID/summary[?revision=N]` or
 `POST /w/ID/summary` with the existing wiki bearer and an empty body or `{}`.
@@ -285,7 +303,7 @@ query parameters. Server-returned citation URLs intentionally contain no key.
 Wiki content endpoints require the wiki bearer. Creation at `POST /wiki/new`
 is anonymous and supplies the new capability's `auth_hash` instead. A wiki ID
 is a 22-character base64url capability ID; page, comment and attachment IDs are
-UUIDs. Bodies and responses are JSON except raw Markdown, image transfers and
+UUIDs. Bodies and responses are JSON except raw Markdown, attachment transfers and
 summary SSE streams. Responses use `Cache-Control: no-store`. The examples omit
 authorization headers.
 
@@ -293,7 +311,7 @@ authorization headers.
 | --- | --- |
 | `POST /wiki/new` | `{id, auth_hash, title}` creates a wiki; 201, or 200 for an identical capability replay. |
 | `GET /w/ID` | Authenticated metadata, content version, counts, limits, search policy and `summary.enabled`. |
-| `DELETE /w/ID` | Delete the wiki and enqueue image cleanup; 204. The old capability cannot recreate it. |
+| `DELETE /w/ID` | Delete the wiki and enqueue attachment cleanup; 204. The old capability cannot recreate it. |
 | `GET /w/ID/pages` | Paginated manifest with a `has_children` boolean per page; `parent=` selects roots, `parent=PAGE_ID` selects children; omit parent for all pages. |
 | `POST /w/ID/pages` | Create a page using the object below. An optional client-generated `id` allows an identical create replay. |
 | `GET /w/ID/pages/PAGE_ID` | Current page, revision, metadata and headings; `Accept: text/markdown` returns canonical Markdown. |
@@ -310,8 +328,9 @@ authorization headers.
 | `GET /w/ID/pages/PAGE_ID/comments` | Paginated comments and detached/resolved state. |
 | `POST /w/ID/pages/PAGE_ID/comments` | `{body, author, anchor}` or `{body, author, parent_id}` for a reply to a root thread. |
 | `PATCH /w/ID/comments/COMMENT_ID` | `{body?, resolved?}` with the comment's `If-Match` revision. |
-| `POST /w/ID/attachments` | Raw image bytes; image Content-Type, optional ASCII `X-Filename`; returns attachment ID and Markdown. |
-| `GET /w/ID/attachments/ATTACHMENT_ID` | Authenticated image bytes. |
+| `POST /w/ID/attachments` | Raw file bytes; Content-Type, optional ASCII `X-Filename`; returns ID, name, size, stored type and Markdown. Supported preview types require matching media signatures. Other types become `application/octet-stream`. |
+| `HEAD /w/ID/attachments/ATTACHMENT_ID` | Authenticated metadata via Content-Type, Content-Length and Content-Disposition; no file body or R2 read. |
+| `GET /w/ID/attachments/ATTACHMENT_ID` | Authenticated original bytes with download disposition and encoded filename. No public file URL is created. |
 
 `navigation` returns ancestors from root to parent and the immediate previous
 and next live pages in depth-first order, sorting siblings by path. A missing
@@ -400,9 +419,9 @@ credential, wiki capability or raw provider error is returned or logged.
 | Markdown body | 256 KiB per page |
 | Indexed section heading | 500 UTF-8 bytes |
 | Revision snapshots plus stored comment text/anchors | 1 GiB per wiki; indexes and database overhead are additional |
-| Image upload | 5 MiB; PNG, JPEG, GIF, WebP |
-| Concurrent image uploads | 2 per wiki; additional uploads receive 429 |
-| Total uploaded images | 1 GiB per wiki |
+| Attachment upload | 5 MiB per file; image/video previews plus download-only files |
+| Concurrent attachment uploads | 2 per wiki; additional uploads receive 429 |
+| Total uploaded attachments | 1 GiB per wiki |
 | Comments | 1,000 per page; 8,000 UTF-8 bytes per comment |
 | Hierarchy | 32 parent levels |
 | Search results | At most 20 passages |

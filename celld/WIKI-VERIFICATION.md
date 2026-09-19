@@ -16,8 +16,9 @@ TypeSafe HTTP server. Coverage includes:
 - Atomic search indexing, aliases, related terms, filters, revision citations,
   Unicode passage boundaries, concurrent reads and changes-feed synchronization.
 - Page/section comments, replies, conditional updates and detached anchors.
-- Authenticated images, content-type/signature checks, upload size limits and
-  persistence across daemon restart.
+- Authenticated images, videos and download-only files; content-type/signature
+  checks, metadata HEAD requests, filename preservation, upload size limits and
+  persistence across daemon restart. HTML/SVG are opaque downloads.
 - Jev score validation, cache invalidation, coalescing, concurrency limits,
   deadlines, provider failure and edits/deletion during evaluation.
 
@@ -67,6 +68,14 @@ mobile recordings, captions and posters from disposable synthetic content. It
 uses real Chrome mouse/touch inputs and keyword search without provider calls.
 Chrome adds one second of network latency during refresh to make the loading
 indicator visible; the recording captions identify this simulated delay.
+
+`CHROME_BIN=/path/to/chrome npm run test:media:e2e` uses FFmpeg to create a small
+valid video and real browser downloads to compare saved image/video/document
+bytes. It exercises agent uploads, human file insertion and saving, mixed image
+and attachment Markdown, deferred video downloads, playback, pause, seeking,
+fullscreen entry/exit, desktop/mobile layouts and cleanup on page changes.
+The chat case verifies external image/video opt-in, downloads, no forwarded
+credentials/referrers, literal HTML and CSP. Only local fixtures are used.
 
 ## Linked chat and wiki coverage
 

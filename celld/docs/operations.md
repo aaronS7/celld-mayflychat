@@ -7,7 +7,7 @@ the bearer hash, fixed message mode, ordered message log, byte count, and last a
 long polls after committing. Waiting holds no SQL transaction. A separate
 `CreationGate` object coordinates anonymous chat creation quotas. Optional wikis
 use one `Wiki` object per wiki, a separate `WikiCreationGate` for creation quotas,
-and the `WIKI_FILES` R2 binding for uploaded images.
+and the `WIKI_FILES` R2 binding for uploaded attachments.
 
 The runtime needs no Go executable, Docker daemon, or external SQLite driver.
 The original Go sources remain a protocol reference. The native namespace is
@@ -49,9 +49,9 @@ replicated history and backups. Object addresses and empty storage can remain.
 Wiki pages, history, comments, search index and companion links survive ordinary
 restarts. Wikis have no idle expiry and no automatic history pruning. Page
 deletion is a revision-preserving soft delete; deleting an entire wiki removes
-live content and schedules uploaded-image cleanup. Cleanup alarms also handle
+live content and schedules uploaded-file cleanup. Cleanup alarms also handle
 interrupted uploads and may finish already requested cleanup while wikis are
-disabled. Preserve both object data and image storage in backups. See the
+disabled. Preserve both object data and attachment storage in backups. See the
 [wiki lifecycle and limits](wiki.md).
 
 ## Retention and limits

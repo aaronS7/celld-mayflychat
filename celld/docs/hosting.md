@@ -32,7 +32,7 @@ chat. Existing histories are not converted.
 
 `WIKI_ENABLED=1` enables a SQLite Durable Object per wiki, with versioned pages,
 FTS5 search and discussion. Keep the `WIKIS`, `WIKI_CREATION` and `WIKI_FILES`
-bindings and existing migrations from `wrangler.jsonc`; uploaded images use the
+bindings and existing migrations from `wrangler.jsonc`; uploaded attachments use the
 R2 binding. Wikis persist independently of chat retention. Disabling the feature
 hides its routes without deleting data. `WIKI_BOOK_LAYOUT_ENABLED=1` adds the
 desktop sidebar and mobile drawer. Optional `JEV_WIKI_SEARCH_ENABLED=1` reuses

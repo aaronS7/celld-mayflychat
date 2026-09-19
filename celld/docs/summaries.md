@@ -87,7 +87,7 @@ posted to a chat, saved as a wiki revision or cached by the application.
 
 Whole-wiki summaries are a **bounded overview**, not a guarantee of coverage of
 every topic. Selection is deterministic; it does not crawl every page or use
-Jev to pick pages. Empty text is skipped. Comments, image contents, page history
+Jev to pick pages. Empty text is skipped. Comments, attachment contents, page history
 and linked companion resources are not included. The response identifies the
 snapshot version and actual included sources, so callers can assess coverage.
 
