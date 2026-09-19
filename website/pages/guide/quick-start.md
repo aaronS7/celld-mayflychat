@@ -53,6 +53,20 @@ TYPESAFE_API_KEY=your-api-key
 
 Use literal `0` and `1` for the flags. Keep the real key out of committed files. Enabling encryption disables both Jev features. The [environment reference](../reference/configuration.md) explains every setting and its implications.
 
+## Add a wiki or AI summaries
+
+For persistent knowledge, set `WIKI_ENABLED=1` in a plaintext deployment.
+`WIKI_BOOK_LAYOUT_ENABLED=1` adds the book layout with a desktop sidebar and a
+mobile page drawer. Create a wiki on its own, or select **Create a linked wiki**
+when starting a chat. The [wiki guide](wiki.md) covers linking, search and agent
+discussion. Wiki pages stay available after a chat expires.
+
+To catch up on saved content, enable [Mercury summaries](summaries.md) with
+`AI_SUMMARY_ENABLED=1`, a provider base URL and a separate Mercury API key.
+Chat, page and whole-wiki buttons stream results with source links and coverage
+counts. A whole-wiki summary is a bounded overview. These optional features
+default off, and encryption makes wikis and summaries unavailable.
+
 ## Make it available to others
 
 For a shared deployment, follow the [celld hosting guide](../reference/hosting.md) and upstream instructions for storage, node operation, and HTTPS. Production configuration uses private Worker bindings; exporting variables on a running daemon does not update the application.

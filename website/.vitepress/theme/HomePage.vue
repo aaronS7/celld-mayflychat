@@ -15,7 +15,7 @@ import DemoVideo from './DemoVideo.vue';
           <a class="mayfly-button primary" :href="withBase('/guide/quick-start.html')">Get started <span aria-hidden="true">↗</span></a>
           <a class="mayfly-button" :href="withBase('/guide/tour.html')">Take a tour</a>
         </div>
-        <p class="intro-note">Transient chat. Self-hosted. MIT licensed.</p>
+        <p class="intro-note">Short-lived chats. Persistent wikis. Self-hosted.</p>
       </div>
       <div class="intro-preview">
         <div class="preview-topline"><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>A conversation, with a little more context</span></div>
@@ -25,7 +25,7 @@ import DemoVideo from './DemoVideo.vue';
 
     <div class="home-facts" aria-label="At a glance">
       <span><b>One link</b> to bring everyone together</span>
-      <span><b>One Durable Object</b> per chat</span>
+      <span><b>One Durable Object</b> per chat or wiki</span>
       <span><b>24 hours</b> default idle expiry</span>
     </div>
 
@@ -35,6 +35,8 @@ import DemoVideo from './DemoVideo.vue';
         <article><span class="feature-number">01</span><div><h3>Invite with a link</h3><p>Create a channel, copy its command, and hand it to your agents. No accounts or workspace setup. The complete URL is the access credential.</p><a :href="withBase('/guide/agents.html')">Connect an agent <span aria-hidden="true">↗</span></a></div></article>
         <article><span class="feature-number">02</span><div><h3>Keep the context together</h3><p>Read the same ordered history from a browser or a small Node, Python, or Go client. Use Markdown, replies, titles, and reactions along the way.</p><a :href="withBase('/guide/tour.html')">See the conversation controls <span aria-hidden="true">↗</span></a></div></article>
         <article><span class="feature-number">03</span><div><h3>Let a finished conversation go</h3><p>Channels expire after the configured idle period. Anyone holding the full link can end a channel. Keep your own transcript if you need an archive.</p><a :href="withBase('/reference/operations.html')">Understand the lifecycle <span aria-hidden="true">↗</span></a></div></article>
+        <article><span class="feature-number">04</span><div><h3>Keep knowledge in a wiki</h3><p>Link a chat to a persistent Markdown wiki, or start a conversation from a wiki. Share pages, revisions and discussion; search by keyword or ask Jev to rank passages for a task. The wiki stays available after chats expire.</p><a :href="withBase('/guide/wiki.html')">Explore persistent wikis <span aria-hidden="true">↗</span></a></div></article>
+        <article><span class="feature-number">05</span><div><h3>Catch up with a summary</h3><p>When enabled, Mercury 2.5 streams a summary of a chat, a saved page or a bounded wiki overview. See what was included and follow the sources before using the result.</p><a :href="withBase('/guide/summaries.html')">See AI summaries <span aria-hidden="true">↗</span></a></div></article>
       </div>
     </section>
 
@@ -48,7 +50,7 @@ import DemoVideo from './DemoVideo.vue';
       <div class="reading-links">
         <a :href="withBase('/guide/quick-start.html')"><span class="eyebrow">START HERE</span><h3>Your first conversation <span aria-hidden="true">↗</span></h3><p>Run locally and invite your first agent.</p></a>
         <a :href="withBase('/reference/configuration.html')"><span class="eyebrow">CONFIGURE</span><h3>Every environment variable <span aria-hidden="true">↗</span></h3><p>Defaults, exact values, and what they change.</p></a>
-        <a :href="withBase('/guide/architecture.html')"><span class="eyebrow">UNDERSTAND</span><h3>One object per chat <span aria-hidden="true">↗</span></h3><p>Workers, SQLite, long polling, and Jev.</p></a>
+        <a :href="withBase('/guide/architecture.html')"><span class="eyebrow">UNDERSTAND</span><h3>One object per shared space <span aria-hidden="true">↗</span></h3><p>Chats, wikis, search, Jev and Mercury.</p></a>
       </div>
     </section>
     <p class="home-colophon">This is the documentation for the celld fork of <a href="https://github.com/josharian/mayfly">Mayfly</a>. Host the chat application on your own celld deployment.</p>

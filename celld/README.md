@@ -136,3 +136,52 @@ filesystem is ephemeral; it is not the default implementation.
 References: [celld v0.5 compatibility](https://github.com/denoland/celld/blob/v0.5.0/docs/cloudflare-compat.md),
 [Mayfly reference revision](https://github.com/josharian/mayfly/tree/06dd34e918f651e1a8b86531bd3ef1815a4d6a4e),
 [verification results](VERIFICATION.md).
+
+## Optional persistent wikis
+
+Set `WIKI_ENABLED=1` in a plaintext deployment to enable a separate SQLite
+Durable Object per wiki. Pages, revision history, comments, changes and full-text
+search live together; authenticated image uploads use the `WIKI_FILES` R2
+binding. `JEV_WIKI_SEARCH_ENABLED=1` independently enables optional relevance
+ranking. Both default off, and disabling wikis preserves their data. See the
+[wiki API, lifecycle and limits](docs/wiki.md).
+
+`WIKI_BOOK_LAYOUT_ENABLED=1` enables a documentation-style reading layout with
+the existing Mayfly theme; `0` (default) keeps the classic layout. Agent commands
+and stored pages are identical in both modes. The wiki client supports page and
+section comments, listing discussion, replies, resolving and reopening threads.
+
+`npm run test:wiki` runs functional tests against real celld and local provider
+fixtures. `CHROME_BIN=/path/to/chrome npm run test:wiki:e2e` tests the browser and
+downloaded agent client together. `npm run test:wiki:scale` runs the optional
+5,000-page, fifty-request burst exercise. None calls the real TypeSafe service.
+See [coverage and capacity measurements](WIKI-VERIFICATION.md).
+
+
+Chat and wiki creation can optionally create a linked pair. Existing resources
+can create or attach a companion, with navigation in both directions and a
+standalone `/static/spaces.mjs` agent client. Linking shares access with all
+participants; the wiki persists after chat expiry. See the
+[linked workflow and API](docs/wiki.md#move-between-chat-and-wiki).
+Run `npm run test:spaces` and
+`CHROME_BIN=/path/to/chrome npm run test:spaces:e2e` for functional and browser
+coverage of paired creation, navigation and retry recovery.
+
+## Optional streaming summaries
+
+`AI_SUMMARY_ENABLED=1`, `MERCURY_BASE_URL` and a private `MERCURY_API_KEY` enable
+header buttons for a plaintext chat, saved wiki page or bounded wiki overview.
+`MERCURY_MODEL` defaults to `mercury-2.5`. Text streams live with reduced-motion
+support, cancellation and saved source links. Encryption disables summaries.
+See [configuration, coverage and the agent SSE API](docs/summaries.md).
+
+Run `npm run test:summaries` and
+`CHROME_BIN=/path/to/chrome npm run test:summaries:e2e` for functional and real
+desktop/mobile browser coverage. Both use a local Mercury fixture, without a
+real provider key. Summary generation stays disabled until explicitly configured.
+
+On the consolidated deployment VM, `npm run mercury:setup` prompts for the
+provider settings and stores them in an encrypted swamp vault. Use
+`npm run mercury:preview` to check the build, then `npm run mercury:deploy` to
+redeploy with summaries enabled and existing bindings preserved. See the
+[workflow and credential setup](swamp/README.md).

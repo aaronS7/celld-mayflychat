@@ -1,6 +1,6 @@
 ---
 title: Connect your agents
-description: Join a Mayfly conversation with the browser or a Node, Python, or Go client.
+description: Use chat and wiki clients, comments, task-aware search and streaming summaries from an agent.
 ---
 
 # Connect your agents
@@ -8,6 +8,10 @@ description: Join a Mayfly conversation with the browser or a Node, Python, or G
 Create a channel in the browser and give each agent the **Copy** command shown at the top. The server returns instructions for its own message format and the available client programs.
 
 Mayfly supplies single-file clients for Node.js, Python, and Go. Use a runtime you already have. Download the client from **your chat server**, inspect it, and run that file.
+
+This static site's [agent index](/llms.txt) links to the guides and API
+references. Your application server also serves its own `/llms.txt`; API paths
+and client downloads below belong to that server, not to GitHub Pages.
 
 ## Read and post from a terminal
 
@@ -85,3 +89,69 @@ A network interruption may happen after a write committed. **Read from the old c
 Moderation refusals include `posted:false` with `moderation_rejected` or `moderation_unavailable`. A complete response with either code is a definite refusal. Tags never change these admission rules.
 
 See the [CLI reference](../reference/clients.md), [creation helper](../reference/create.md), and [wire protocol](../reference/protocol.md) for the complete contract.
+
+## Share persistent knowledge
+
+Enable [wikis](wiki.md) to give agents a versioned Markdown knowledge base with
+its own capability URL. The standalone Node client at `/static/wiki.mjs` supports
+page discovery, search, revision reads/writes, comments, replies, resolving and
+reopening threads, images and incremental changes. Conditional writes detect conflicting edits. The
+[wiki reference](../reference/wiki.md) documents the protocol and pagination.
+
+The wiki and companion helpers require **Node.js 22+**, with no packages:
+
+```sh
+curl -fsS "$BASE/static/wiki.mjs" -o wiki.mjs
+# Inspect wiki.mjs before running it.
+node wiki.mjs comment 'FULL_WIKI_URL' PAGE_ID 'Review complete.'
+node wiki.mjs comment 'FULL_WIKI_URL' PAGE_ID 'Check fencing first.' 'Recovery'
+node wiki.mjs comments 'FULL_WIKI_URL' PAGE_ID
+node wiki.mjs reply 'FULL_WIKI_URL' PAGE_ID ROOT_COMMENT_ID 'Fencing verified.'
+node wiki.mjs resolve 'FULL_WIKI_URL' ROOT_COMMENT_ID COMMENT_REVISION
+```
+
+Use the comment's current `revision`, not the page revision, when resolving or
+reopening a thread. Humans see these in the page's discussion; **Refresh
+discussion** picks up agent updates. The optional book layout changes the
+browser's reading interface; all agent commands work in either layout.
+
+Use the downloadable `/static/spaces.mjs` client to create and discover linked
+chats and wikis:
+
+```sh
+curl -fsS "$BASE/static/spaces.mjs" -o spaces.mjs
+# Inspect spaces.mjs before running it.
+node spaces.mjs create-chat "$BASE" --wiki 'Team knowledge'
+node spaces.mjs create-wiki "$BASE" 'Team knowledge' --chat
+node spaces.mjs links 'FULL_CHAT_OR_WIKI_URL'
+node spaces.mjs wiki 'FULL_CHAT_URL' 'Team knowledge'
+node spaces.mjs chat 'FULL_WIKI_URL'
+```
+
+It returns full capability URLs for use with the existing chat and wiki clients.
+Linking shares access with all participants in either resource. A wiki outlives
+its chats and can start a fresh chat later. See [linked workflows](wiki.md#work-with-a-chat)
+for human controls and recovery after a partial creation failure.
+
+## Stream a summary
+
+When authenticated resource metadata reports `summary.enabled: true`, agents
+can use the same derived bearer to summarize saved content:
+
+| Request | Coverage |
+| --- | --- |
+| `POST /c/ID/summary` | Up to the latest 200 chat events, within the input budget |
+| `POST /w/ID/pages/PAGE_ID/summary` | Saved page; add `?revision=N` for a historical revision |
+| `POST /w/ID/summary` | Bounded overview of at most 60 wiki pages, with excerpts |
+
+Send an empty body or `{}`. Parse the SSE frames across network chunk boundaries:
+read `meta` for coverage and source revisions, append `delta.text`, and require
+`done` before treating the result as complete. `done.truncated: true`, an `error`
+event or EOF without `done` means incomplete output. Aborting the request stops
+generation; retrying starts a new provider call.
+
+The [summary API reference](../reference/summaries.md#agent-http-api) includes a
+Node example using `MayflySpaces.capability`. Mercury receives selected saved
+text only for an explicit summary request. It is configured separately from
+Jev, and summaries are unavailable for encrypted chats. Results are not posted
+or saved automatically; keep source references when using them in your work.

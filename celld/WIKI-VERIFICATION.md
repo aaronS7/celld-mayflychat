@@ -1,0 +1,132 @@
+# Wiki verification
+
+Verified locally on 2026-09-19 with celld 0.5.0 and real headless Chrome. Tests
+create disposable storage; they do not alter a running deployment. Wiki and Jev
+search flags and the book layout remain off in the default configuration.
+
+## Functional and browser coverage
+
+`npm run test:wiki` exercises real celld SQLite and local R2, plus a synthetic
+TypeSafe HTTP server. Coverage includes:
+
+- Wiki capabilities, authentication, isolation, creation replay and private HTML
+  shells; disabling/re-enabling the feature and encryption policy changes.
+- Stable page identities, navigation, pagination, optimistic concurrency,
+  immutable history, restoration, soft deletion and permanent wiki deletion.
+- Atomic search indexing, aliases, related terms, filters, revision citations,
+  Unicode passage boundaries, concurrent reads and changes-feed synchronization.
+- Page/section comments, replies, conditional updates and detached anchors.
+- Authenticated images, content-type/signature checks, upload size limits and
+  persistence across daemon restart.
+- Jev score validation, cache invalidation, coalescing, concurrency limits,
+  deadlines, provider failure and edits/deletion during evaluation.
+
+The synthetic judged corpus in `celld/testdata/wiki-search.json` retained all
+nine useful-page judgments in its top twenty candidates across eight cases.
+This is a small retrieval regression check, not evidence of live model quality.
+
+`CHROME_BIN=/path/to/chrome npm run test:wiki:e2e` drives the actual browser and
+the client downloaded from the running service through one shared wiki. It
+checks creation, human/agent edits, conflict preservation and merge, history
+restoration, discussion, image upload/rendering, keyword/Jev search, source-line
+citations, client changes, mobile layout, missing keys, CSP and deletion.
+The Jev endpoint is replaced by the local fixture; no provider key is needed.
+
+The book-layout functional checks additionally exercise flag validation and
+reversibility, authenticated depth-first navigation, ancestors, nested and moved
+pages, deleted-page exclusion and wiki isolation. The downloaded agent client
+creates page/section comments, reads discussion, replies, resolves and reopens
+threads, including stale-revision rejection.
+
+A second Chrome test enables `WIKI_BOOK_LAYOUT_ENABLED=1` and checks the sticky
+sidebar, breadcrumbs, section outline, previous/next links, capability-preserving
+section URLs, browser history, keyword/Jev search dialog and revision citations.
+It shares discussion between a human and the downloaded agent client, refreshes
+agent replies, reopens an agent-resolved thread, and saves a human edit. It also
+checks draft preservation, light/dark themes, the mobile page menu, overflow,
+agent instructions and CSP. The original browser test keeps the flag off to
+cover the classic layout too.
+
+The mobile navigation is additionally exercised using actual touch events in
+Chrome's mobile viewport: opening a full-height modal drawer, independent tree
+scrolling, no article reflow, keyboard focus containment and return, Escape,
+backdrop and close-button dismissal, selection and create-page dismissal, and
+search from the drawer. Checks cover responsive movement between drawer and
+desktop sidebar, reduced motion, current-page ancestors after saving, and expand
+controls only on pages with live children. The manifest's indexed child-existence
+query is checked after moving and deleting child pages.
+
+Refresh checks hold a real manifest request open to verify the spinning arrow,
+loading label, busy semantics, repeated-tap guard and unchanged toolbar width.
+They confirm discovery of an agent-added page, completion feedback, preservation
+of the article and selected ancestors, an injected failure followed by a
+successful retry inside the mobile drawer, retained focus and reduced motion.
+
+`CHROME_BIN=/path/to/chrome node celld/record-wiki.mjs` produces desktop and
+mobile recordings, captions and posters from disposable synthetic content. It
+uses real Chrome mouse/touch inputs and keyword search without provider calls.
+Chrome adds one second of network latency during refresh to make the loading
+indicator visible; the recording captions identify this simulated delay.
+
+## Linked chat and wiki coverage
+
+`npm run test:spaces` exercises authenticated reciprocal discovery, several chats
+per wiki, several wikis per chat, restart persistence, independent deletion,
+feature flags, encrypted-chat rejection, unchanged chat expiry, payload and
+100-link limits, tampered ciphertext, and capability isolation from messages
+and Jev inputs. Injected lost creation responses and failed reciprocal writes
+verify that retry reuses the same resources and does not resurrect deleted
+chats. The downloaded CLI also exercises discovery and recovery files.
+
+`CHROME_BIN=/path/to/chrome npm run test:spaces:e2e` checks optional paired
+creation in both directions, navigation, adding companions to existing resources,
+linking an existing wiki, agent-created chats, discovery refresh, a retained
+chat draft, one-sided failure and browser retry, shortcut removal, missing keys,
+mobile layout and CSP. It uses real Chrome and clients downloaded from celld.
+
+## Local capacity exercise
+
+`npm run test:wiki:scale` seeds 5,000 synthetic pages; set
+`WIKI_SCALE_PAGES=10000` to exercise the configured page ceiling. Each page has
+roughly 1 KiB of Markdown across three sections. The exercise mixes selective
+and broad searches: forty sequential searches, three bursts of fifty searches,
+then forty searches alongside ten conditional writes. Accepted writes are
+verified through fresh search results. Both runs passed without request errors.
+
+| Measurement | 5,000 pages | 10,000 pages |
+| --- | ---: | ---: |
+| Seed time | 15.1 s | 28.6 s |
+| Sequential search p50 / p95 | 3 / 14 ms | 5 / 88 ms |
+| Burst search p50 / p95 | 94 / 167 ms | 234 / 673 ms |
+| Concurrent write p50 / p95 | 133 / 140 ms | 530 / 569 ms |
+
+These are warm local HTTP measurements from a synthetic corpus, not production
+latency guarantees. They do not cover large revision histories, maximum-size
+pages, cold activation, independent host failure, distributed replication or
+external TypeSafe latency. Broad bursts at 10,000 pages show the queueing cost
+of a single wiki's SQL thread. Measure the intended deployment before assigning
+a production latency objective.
+
+## Reproduce
+
+```sh
+npm run generate
+npm run check
+npm run test:wiki
+npm run test:spaces
+CHROME_BIN=/path/to/chrome npm run test:spaces:e2e
+CHROME_BIN=/path/to/chrome npm run test:wiki:e2e
+npm run test:wiki:scale
+WIKI_SCALE_PAGES=10000 npm run test:wiki:scale
+npm --prefix website run build
+```
+
+The complete `npm test` regression command additionally requires Chrome, Go
+1.27.1 and Python with `cryptography`; `CHROME_BIN`, `GO_BIN` and `PYTHON_BIN`
+can select those executables. The existing chat, configuration, moderation,
+tagging and reporting checks remain in that command alongside the wiki tests.
+
+The GitHub Pages API reference is generated from the wiki documentation served
+by the application; the human guide and screenshots are maintained alongside it.
+Building the site validates the documentation locally; publishing follows the
+repository's deployment workflow.

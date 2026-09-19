@@ -5,7 +5,9 @@ routes each public channel ID to one `Chat` Durable Object. That object stores
 the bearer hash, fixed message mode, ordered message log, byte count, and last activity in
 `ctx.storage.sql`. It performs compare-and-swap appends synchronously and wakes
 long polls after committing. Waiting holds no SQL transaction. A separate
-`CreationGate` object coordinates anonymous creation quotas.
+`CreationGate` object coordinates anonymous chat creation quotas. Optional wikis
+use one `Wiki` object per wiki, a separate `WikiCreationGate` for creation quotas,
+and the `WIKI_FILES` R2 binding for uploaded images.
 
 The runtime needs no Go executable, Docker daemon, or external SQLite driver.
 The original Go sources remain a protocol reference. The native namespace is
@@ -43,6 +45,14 @@ resubmitting. Existing clients already handle uncertain transport outcomes.
 Deletion and expiry remove the live channel metadata and events and wake readers
 with 404. They do not erase participants' copies, SQLite free pages, or celld's
 replicated history and backups. Object addresses and empty storage can remain.
+
+Wiki pages, history, comments, search index and companion links survive ordinary
+restarts. Wikis have no idle expiry and no automatic history pruning. Page
+deletion is a revision-preserving soft delete; deleting an entire wiki removes
+live content and schedules uploaded-image cleanup. Cleanup alarms also handle
+interrupted uploads and may finish already requested cleanup while wikis are
+disabled. Preserve both object data and image storage in backups. See the
+[wiki lifecycle and limits](wiki.md).
 
 ## Retention and limits
 
@@ -86,6 +96,39 @@ default per-cell limit is 64; `CELLD_MAX_CELL_REQUESTS` configures it. An overlo
 cell can refuse another request with 503. One chat remains serialized for writes,
 while different chats have separate objects. Local correctness tests do not
 establish fleet throughput or maximum participant counts.
+
+## Search and streaming summaries
+
+Wiki keyword search stays in its object's FTS5 index. Jev relevance ranking
+uses at most 20 candidate passages, a one-second deadline and at most four
+distinct concurrent evaluations per wiki. Failure returns keyword results;
+the response reports fallback. This bound does not make one wiki infinitely
+parallel: writes still serialize through one Durable Object.
+
+Mercury summaries have a 45-second total deadline, at most two concurrent
+requests per object and ten starts per minute per active object. Limits reset
+on object restart and are not a deployment-wide usage budget. Whole-wiki
+overviews include at most 60 pages, further bounded by excerpts and input bytes.
+Reading or summarizing does not extend chat expiry. See [summary limits](summaries.md#coverage-and-limits).
+
+Allow SSE chunks to reach clients incrementally through the HTTPS ingress;
+response buffering can make a working stream appear all at once. Cancellation
+should propagate upstream. After changing provider bindings, check `/config`
+and request an actual summary on synthetic content: `summary.enabled` reports
+policy, not key validity or provider availability.
+
+For the existing consolidated deployment, use the [Mercury vault workflow](https://github.com/aaronS7/celld-mayflychat/blob/main/celld/swamp/README.md)
+to preserve live settings and verify all three nodes and public HTTPS. The
+`fleet:*` commands in this checkout manage a separate disposable test fleet.
+
+## Scheduled reports
+
+An independently enabled reporting feature uses `CreationGate` alarms for
+hourly new-chat digests and a twelve-hour Worker cron for creation counts.
+It has its own provider settings, administrator token and durable email outbox.
+When content reporting is on, it sends sampled plaintext automatically, unlike
+the on-demand summary endpoints. See [scheduled reports](scheduled-reports.md)
+for configuration, sampling, retries and retained email-copy boundaries.
 
 ## HTTPS and source IPs
 

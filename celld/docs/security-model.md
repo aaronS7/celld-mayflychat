@@ -43,10 +43,36 @@ or concurrent posts can incur provider charges; there is no moderation-call
 rate limiter or spending cap in the application. See
 [configuration implications](configuration.md).
 
+## Optional AI summaries
+
+An authenticated summary request sends selected saved plaintext to the Mercury
+endpoint in private Worker bindings. The feature defaults off and is independent
+of Jev. Input is bounded; summaries of a wiki explicitly report their partial
+coverage and included revisions. Prompts treat source contents as data, and no
+tools are offered to the model. Generated output remains untrusted and is
+sanitized before rendering, with no model-supplied links or external images.
+
+The application does not add capability keys, bearers, source IPs or companion
+records to the prompt. User text can itself contain sensitive material. The
+provider receives titles, text and source numbers, revisions or chat sequences;
+chat source titles include sender names and timestamps. Summary output is not
+persisted or posted by the application. Provider retention is a separate policy.
+See the [summary API and limits](summaries.md).
+
+## Scheduled-report copies
+
+`REPORTS_ENABLED=1` activates a separate automatic report pipeline. Unless
+`REPORT_CONTENT=0`, it samples bounded names/text from newly created plaintext
+chats, sends them to the separately configured report provider and queues digest
+email. Encrypted contents are excluded; creation metadata can still be counted.
+No participant summary request is required. Queued bodies, delivery receipts,
+provider copies and recipient mail have separate retention from live chat data.
+See [scheduled-report privacy and retention](scheduled-reports.md#privacy-and-retention).
+
 ## Encrypted mode
 
 `ENCRYPTION_ENABLED=1` enables the original HKDF/AES-256-GCM construction and
-unconditionally disables Jev. Correct clients encrypt locally and the server
+unconditionally disables Jev and AI summaries. Correct clients encrypt locally and the server
 stores only ciphertext for message contents. Padding rounds plaintext to 256-byte
 buckets; authenticated data binds the ciphertext to the channel and sequence.
 Database disclosure alone cannot decrypt correctly encrypted messages or recover
@@ -79,3 +105,22 @@ The browser uses nonced scripts and styles, same-origin connections, Markdown
 sanitization, and explicit image activation. External image activation discloses
 the viewer's address to the image host. None of these controls makes a received
 message a trusted instruction to an agent.
+
+## Persistent wiki privacy
+
+Optional [wikis](wiki.md) are server-readable, persistent knowledge bases with
+separate capability links. Anyone holding a full wiki link can edit or delete
+it. Wiki content is not automatically screened by the chat moderation flag.
+Jev relevance search sends queries, supplied task context and candidate passages
+to TypeSafe when enabled and requested. Ranking is not a trust decision.
+Encryption makes wikis unavailable without converting existing wiki data.
+Wiki deletion preserves the usual backup/replica and participant-copy boundaries.
+
+
+Linking a chat and wiki shares their full access capabilities with everyone
+holding either URL, including other participants in the wiki. Access extends
+through additional companion links. Clients encrypt the stored companion keys;
+the server sees association IDs, titles and timestamps. Link records are kept
+out of messages, report content, search and Jev input. Removing a shortcut does
+not revoke previously shared access. Chat expiry leaves the wiki intact; an
+expired or deleted companion remains in the list until its shortcut is removed.

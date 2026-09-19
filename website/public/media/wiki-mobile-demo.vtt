@@ -1,0 +1,37 @@
+WEBVTT
+
+00:00:00.000 --> 00:00:01.750
+Mobile: the search bar stays in the header.
+
+00:00:01.750 --> 00:00:04.333
+Open the page navigation drawer.
+
+00:00:04.333 --> 00:00:08.167
+Refresh shows loading and completion. Network delay is simulated.
+
+00:00:08.167 --> 00:00:10.583
+Expand a chapter to browse its pages.
+
+00:00:10.583 --> 00:00:12.417
+The page tree scrolls independently of the article.
+
+00:00:12.417 --> 00:00:15.250
+Choose a page; the drawer closes and reading continues.
+
+00:00:15.250 --> 00:00:17.667
+Reopen navigation at your current page.
+
+00:00:17.667 --> 00:00:19.083
+Tap the backdrop to return to the article.
+
+00:00:19.083 --> 00:00:24.333
+Search stays in its familiar position at the top.
+
+00:00:24.333 --> 00:00:27.167
+Open the matching passage, with its source revision.
+
+00:00:27.167 --> 00:00:32.167
+The sidebar opens the matching chapter automatically.
+
+00:00:32.167 --> 00:00:36.250
+Open and close navigation without losing your place.

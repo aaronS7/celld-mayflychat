@@ -6,5 +6,7 @@ node_modules/
 s3.celld.env
 typesafe.celld.env
 /website/.vitepress/cache/
+/website/.vitepress/.temp/
 /website/.vitepress/dist/
 /website/pages/reference/
+/website/public/llms.txt

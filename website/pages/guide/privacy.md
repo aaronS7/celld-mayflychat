@@ -9,7 +9,7 @@ The native celld implementation defaults to **plaintext**. The server operator c
 
 The full channel link is an access credential in every mode. It contains a locally generated key used to derive a separate bearer. Anyone with the link can read, post, or delete; names are not authenticated accounts.
 
-## Three independent flags
+## Chat policy flags
 
 | Worker binding | Default | What enabling it does |
 | --- | --- | --- |
@@ -48,3 +48,49 @@ Idle chats expire after 24 hours by default. Setting `RETENTION_SECONDS=0` disab
 Deletion removes live records. It does not remove participant transcripts, SQLite free pages, replicated history, or backups.
 
 The [security model](../reference/security-model.md) and [environment-variable reference](../reference/configuration.md) describe these boundaries in detail.
+
+## Persistent wiki policy
+
+[Wikis](wiki.md) use `WIKI_ENABLED` and `JEV_WIKI_SEARCH_ENABLED`, both off by
+default. Wiki content is plaintext and persists until explicitly deleted; it
+has its own capability link and does not inherit chat expiry. Anyone with the
+full link can read, edit and delete the wiki. Chat screening does not screen
+wiki writes.
+
+Optional relevance searches send query/context and candidate passages to
+TypeSafe. Keyword searches stay local. `ENCRYPTION_ENABLED=1` makes wikis
+unavailable and prevents wiki provider calls, while preserving old data in its
+existing plaintext form.
+
+
+Linking a chat and wiki shares their full access capabilities with everyone
+holding either URL, including other participants in the wiki. Access extends
+through additional companion links. Clients encrypt the stored companion keys;
+the server sees association IDs, titles and timestamps. Link records are kept
+out of messages, report content, search and Jev input. Removing a shortcut does
+not revoke previously shared access. Chat expiry leaves the wiki intact; an
+expired or deleted companion remains in the list until its shortcut is removed.
+
+## Optional AI summaries
+
+`AI_SUMMARY_ENABLED=1` enables on-demand Mercury summaries for plaintext chats,
+saved pages and bounded wiki overviews. Only an explicit summary request sends
+selected text to the configured provider; opening a page does not. Text includes
+titles and, for chat, sender names and timestamps. Mayfly does not add access
+keys, bearers, source IPs or companion records to the prompt. Anything written
+inside selected text is still sent. The provider key stays server-side.
+
+Encryption disables summaries. Generated text is not automatically saved or
+posted, and does not refresh chat expiry. Provider retention follows the
+configured provider's policy. See [streaming summaries](summaries.md) for
+coverage, limits and controls.
+
+## Optional scheduled report emails
+
+An operator can separately enable automatic reports. With content reporting
+enabled, these sample names and plaintext from newly created chats, send the
+sample to a report provider, and email a digest to the configured recipient.
+They do not wait for a summary-button press. Encrypted contents are excluded;
+creation counts can still appear in reports. Email, provider and queued-report
+copies may outlive chat deletion. See [scheduled reports](../reference/scheduled-reports.md)
+for settings and retention boundaries.
