@@ -30,6 +30,22 @@ with `/`. For example, `BASE_PATH=/ npm run build` builds for a domain root.
 The Vite override keeps VitePress 1.6 on the patched Vite 6 line, supported by its
 Vue plugin. Keep the lockfile and run `npm audit` when updating dependencies.
 
+Screenshots reserve their space and show a loading indicator until the browser
+resolves the saved/system theme and decodes the matching image. Theme changes
+also wait for the new image, so a light screenshot never flashes in dark mode.
+The indicator respects reduced-motion preferences and reports failed downloads.
+
+After building, run the browser regression check with Chrome or Chromium:
+
+```sh
+CHROME_BIN=/path/to/chrome npm run test:images
+```
+
+Use the same `BASE_PATH` as the build. The check uses a disposable local server
+and browser profile, delays scripts and images, and covers desktop/mobile cold
+loads, rapid theme changes, reduced motion, failed downloads and lazy images.
+The publication workflow runs this check before uploading the site.
+
 ## Edit content
 
 - `pages/guide/`: authored guides and interactive examples.

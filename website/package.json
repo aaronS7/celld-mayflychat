@@ -9,6 +9,7 @@
     "prebuild": "npm run sync",
     "build": "vitepress build",
     "preview": "vitepress preview",
+    "test:images": "node scripts/test-images.mjs",
     "capture": "node scripts/capture-demo.mjs",
     "capture:summaries": "node scripts/capture-summaries.mjs"
   },
