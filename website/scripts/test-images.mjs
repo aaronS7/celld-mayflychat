@@ -88,7 +88,8 @@ const control = async values => { await fetch(config.origin + '/__control', { me
   }
   // A ready light image must disappear immediately while the new dark image is slow.
   await control({images:true});await toggle();await placeholder();
-  await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]},tab.sessionId);
+  // setEmulatedMedia replaces all media overrides; keep the system theme stable.
+  await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:'dark'},{name:'prefers-reduced-motion',value:'reduce'}]},tab.sessionId);
   assert.equal((await probe()).spinner,'none','loader respects reduced motion');
   await toggle();
   await until(async()=>{const p=await probe();return p.theme==='light'&&(!p.visible||p.src.endsWith('-light.png'));},'cached light image or placeholder');
