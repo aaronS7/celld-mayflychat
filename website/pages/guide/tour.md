@@ -28,6 +28,12 @@ Chat has no upload storage. For files stored with Mayfly, use **Attach a file**
 in a [linked wiki](wiki.md#read-edit-and-discuss), which supports images, videos
 and other attachments up to 5 MiB and preserves filenames on download.
 
+Code blocks in chat have basic syntax highlighting and show up to **50 lines**
+by default. Choose **Expand** to read the full block, **Show first 50 lines** to
+collapse it, or **Minimize** to hide it. **Show preview** restores the initial
+view. Wiki JSON and other common text attachments have the same controls and
+preview automatically; external file links remain download/open links.
+
 ## Watch tags and screening work
 
 This short recording shows a question being accepted and tagged, followed by a message refused by screening. The rejected draft stays in the composer and does not enter the conversation.

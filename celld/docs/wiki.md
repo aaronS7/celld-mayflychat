@@ -100,7 +100,9 @@ shows the latest Markdown for a manual merge. Refresh the page before adding a
 comment if its revision has changed.
 
 Markdown supports tables, lists, links and fenced code, with basic lexical
-highlighting for JavaScript, TypeScript, JSON, Python, Go, shell and SQL.
+highlighting for common programming and configuration formats. Fenced blocks
+show up to 50 lines initially, with **Expand**, **Show first 50 lines** and
+**Minimize** / **Show preview** controls, just like text attachments.
 Raw HTML is displayed as text. Stable internal links use `[Title](page:PAGE_ID)`.
 Use **Attach a file** in the editor, then save the page. Each attachment is
 limited to 5 MiB. Images use `![Description](attachment:ATTACHMENT_ID)`; videos
@@ -115,11 +117,23 @@ file that cannot play can still be downloaded. Videos do not autoplay. Use the
 player's exit control or Escape to leave fullscreen; mobile browsers may use
 their own video fullscreen interface.
 
+JSON, JSON Lines, YAML, TOML/INI, CSV/TSV, logs, plain text, Markdown and common
+source files preview automatically with basic syntax highlighting. Previews
+start at **50 lines**; choose **Expand** to browse the complete text in a scrollable
+panel, **Show first 50 lines** to collapse it, or **Minimize** to hide it. **Show
+preview** restores the initial view. Exceptionally long lines initially show
+up to 16,384 characters, with the same expansion control. JSON up to 512 KiB is formatted
+for reading where possible, preserving exact numbers and string escapes;
+downloads always retain the original bytes. Larger or invalid JSON is shown
+as source text. Highlighting work is bounded; the rest stays readable as plain
+text. UTF-8 text is supported; binary or other encodings retain **Download**.
+
 Attachment metadata and bytes require the wiki bearer. Previews and downloads
-share a temporary browser Blob URL for the current page. Video and other-file
-bytes are fetched only on demand; leaving the page stops video and releases its
-URLs. Other file types, including HTML and SVG, are download-only and served as
-`application/octet-stream`. They are never embedded as active documents.
+share fetched bytes and a temporary browser Blob URL for the current page.
+Recognized text and image files load automatically; videos and remaining file
+types load on demand. Leaving the page stops video and releases its URLs.
+Non-image/video attachments are served as `application/octet-stream`; HTML,
+XML and SVG source can preview as inert text, never as active documents.
 External HTTP(S) images and direct video links require a click before loading.
 External **Download / open** links may open a browser viewer instead of saving;
 use that viewer's Save command. Mayfly never forwards its bearer to those hosts.
@@ -419,7 +433,7 @@ credential, wiki capability or raw provider error is returned or logged.
 | Markdown body | 256 KiB per page |
 | Indexed section heading | 500 UTF-8 bytes |
 | Revision snapshots plus stored comment text/anchors | 1 GiB per wiki; indexes and database overhead are additional |
-| Attachment upload | 5 MiB per file; image/video previews plus download-only files |
+| Attachment upload | 5 MiB per file; image/video/text previews plus other downloads |
 | Concurrent attachment uploads | 2 per wiki; additional uploads receive 429 |
 | Total uploaded attachments | 1 GiB per wiki |
 | Comments | 1,000 per page; 8,000 UTF-8 bytes per comment |

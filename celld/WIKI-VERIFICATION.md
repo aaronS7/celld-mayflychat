@@ -1,6 +1,6 @@
 # Wiki verification
 
-Verified locally on 2026-09-19 with celld 0.5.0 and real headless Chrome. Tests
+Verified locally on 2026-09-21 with celld 0.5.0 and real headless Chrome. Tests
 create disposable storage; they do not alter a running deployment. Wiki and Jev
 search flags and the book layout remain off in the default configuration.
 
@@ -16,9 +16,10 @@ TypeSafe HTTP server. Coverage includes:
 - Atomic search indexing, aliases, related terms, filters, revision citations,
   Unicode passage boundaries, concurrent reads and changes-feed synchronization.
 - Page/section comments, replies, conditional updates and detached anchors.
-- Authenticated images, videos and download-only files; content-type/signature
+- Authenticated images, videos, text and other files; content-type/signature
   checks, metadata HEAD requests, filename preservation, upload size limits and
-  persistence across daemon restart. HTML/SVG are opaque downloads.
+  persistence across daemon restart. HTML/SVG stay opaque on the wire and
+  preview only as inert source text in the browser.
 - Jev score validation, cache invalidation, coalescing, concurrency limits,
   deadlines, provider failure and edits/deletion during evaluation.
 
@@ -76,6 +77,14 @@ and attachment Markdown, deferred video downloads, playback, pause, seeking,
 fullscreen entry/exit, desktop/mobile layouts and cleanup on page changes.
 The chat case verifies external image/video opt-in, downloads, no forwarded
 credentials/referrers, literal HTML and CSP. Only local fixtures are used.
+
+The text-preview browser test covers automatic JSON/YAML/CSV and source previews,
+50-line defaults, expand/collapse/minimize/restore, exact large JSON integers,
+binary fallback, malformed JSON, long-line bounds, safe XML text, unchanged
+download bytes and shared attachment requests. It checks desktop/light and
+mobile/dark layouts, fenced code controls in both chat and wiki, and CSP.
+`npm run test:text-preview` separately checks format recognition, lexical
+highlighting bounds and JSON formatting without numeric precision loss.
 
 ## Linked chat and wiki coverage
 

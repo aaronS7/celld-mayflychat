@@ -109,7 +109,18 @@ Images preview inline. MP4, WebM and Ogg videos offer **Load video**, then play,
 pause, seeking, volume and **Fullscreen**. Videos load on request and do not
 autoplay. Use the player's exit control or Escape to leave fullscreen; mobile
 browsers may use their native player. Unsupported codecs can still be downloaded.
-Other attachments, including HTML and SVG, are downloaded without being rendered.
+JSON, JSON Lines, YAML, TOML/INI, CSV/TSV, logs, Markdown and common source files
+preview automatically with basic syntax highlighting. The initial preview shows
+up to **50 lines**. **Expand** opens the full text in a scrollable panel; **Show
+first 50 lines** collapses it. **Minimize** hides the text, and **Show preview**
+brings it back. Fenced code blocks use the same controls in wiki pages and chat.
+
+JSON files up to 512 KiB are formatted for reading when possible, preserving
+large numbers exactly. Downloads keep the original bytes. Larger or malformed
+JSON stays readable as source. Very long lines initially show up to 16,384 characters,
+and highlighting is bounded so large outputs remain responsive. Text previews
+support UTF-8; binary files and other encodings can still be downloaded.
+HTML, XML and SVG preview as source text and never run as documents.
 External images and video links load only after a click. Their **Download / open**
 action may open the host's viewer; use the browser's Save command in that case.
 Raw Markdown HTML remains literal text.
