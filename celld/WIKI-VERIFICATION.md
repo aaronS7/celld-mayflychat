@@ -77,14 +77,25 @@ and attachment Markdown, deferred video downloads, playback, pause, seeking,
 fullscreen entry/exit, desktop/mobile layouts and cleanup on page changes.
 The chat case verifies external image/video opt-in, downloads, no forwarded
 credentials/referrers, literal HTML and CSP. Only local fixtures are used.
+Image checks write actual PNG and converted JPEG content to the browser
+clipboard and decode the result. Video sharing uses a stub at the operating
+system share-sheet boundary, checking the real File's name, type, unchanged
+bytes, click gesture, cancellation and unsupported-device fallback. These tests
+do not drive an actual operating system share destination.
 
 The text-preview browser test covers automatic JSON/YAML/CSV and source previews,
 50-line defaults, expand/collapse/minimize/restore, exact large JSON integers,
 binary fallback, malformed JSON, long-line bounds, safe XML text, unchanged
 download bytes and shared attachment requests. It checks desktop/light and
 mobile/dark layouts, fenced code controls in both chat and wiki, and CSP.
+Clipboard checks read full original text, Markdown and rich HTML from the real
+browser clipboard, including minimized content and records beyond 50 lines.
+They paste chat code into an editor using the browser's paste shortcut and
+exercise clipboard rejection, missing API and plain-text fallback. Download
+still saves the original attachment after copying is unavailable.
 `npm run test:text-preview` separately checks format recognition, lexical
-highlighting bounds and JSON formatting without numeric precision loss.
+highlighting bounds, JSON formatting without numeric precision loss, Markdown
+fence/filename escaping and inert rich clipboard markup.
 
 ## Linked chat and wiki coverage
 

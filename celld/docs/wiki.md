@@ -110,12 +110,21 @@ and other files use `[Filename](attachment:ATTACHMENT_ID)`. Agents receive the
 appropriate Markdown from `node wiki.mjs upload 'FULL_WIKI_URL' FILE`.
 
 Every attachment card has **Download**, which retains the uploaded filename.
+Downloads save the original file, including MP4s, PDFs and archives, so you can
+move it into a folder or attach it to a GitHub pull request.
 PNG, JPEG, GIF and WebP images preview automatically. MP4, WebM and Ogg video
 cards offer **Load video**, then native play/pause, seeking, volume and
 **Fullscreen** controls. Playback depends on the browser's codec support; a
 file that cannot play can still be downloaded. Videos do not autoplay. Use the
 player's exit control or Escape to leave fullscreen; mobile browsers may use
 their own video fullscreen interface.
+
+Uploaded images offer **Copy → Copy image** as PNG. JPEG, WebP and GIF images
+are converted to a still PNG for copying; **Download** retains the original
+format and animation. After loading an uploaded video, **Share video** appears
+when the device supports sharing that file. It opens the system share sheet;
+available destinations depend on the device. Videos keep **Download** and are
+not advertised as clipboard files.
 
 JSON, JSON Lines, YAML, TOML/INI, CSV/TSV, logs, plain text, Markdown and common
 source files preview automatically with basic syntax highlighting. Previews
@@ -128,6 +137,16 @@ downloads always retain the original bytes. Larger or invalid JSON is shown
 as source text. Highlighting work is bounded; the rest stays readable as plain
 text. UTF-8 text is supported; binary or other encodings retain **Download**.
 
+Text previews and fenced code blocks have a **Copy** menu. **Copy contents**
+copies the complete source text. **Copy as Markdown** includes the filename
+for attachments and a language-tagged code block, suitable for a PR comment.
+**Copy formatted text** supplies code formatting with a plain-text fallback;
+the receiving editor decides which formatting to retain. Markdown and formatted
+copies use the readable JSON layout when available. All three copy the full
+content, even when the preview is minimized or showing only 50 lines.
+Copying requires browser clipboard support and permission. If unavailable,
+select text to copy manually or use **Download** for attachments.
+
 Attachment metadata and bytes require the wiki bearer. Previews and downloads
 share fetched bytes and a temporary browser Blob URL for the current page.
 Recognized text and image files load automatically; videos and remaining file
@@ -135,7 +154,8 @@ types load on demand. Leaving the page stops video and releases its URLs.
 Non-image/video attachments are served as `application/octet-stream`; HTML,
 XML and SVG source can preview as inert text, never as active documents.
 External HTTP(S) images and direct video links require a click before loading.
-External **Download / open** links may open a browser viewer instead of saving;
+External files retain **Download / open**, without the uploaded-file copy/share
+actions. These links may open a browser viewer instead of saving;
 use that viewer's Save command. Mayfly never forwards its bearer to those hosts.
 
 Discussion supports page comments, uniquely named `#`-style section comments, replies and

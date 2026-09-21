@@ -103,17 +103,32 @@ a Markdown editor with preview, title, path, parent page, aliases and tags.
 Pages support Markdown tables, lists, links and basic code highlighting. Use
 **Attach a file** in the editor for images, videos or other files up to 5 MiB,
 then save the page. Each attachment has **Download**, preserving its filename.
+Use it to save the original file before moving it into a folder or attaching it
+to a GitHub pull request, including videos, PDFs and archives.
 Uploaded files belong to the wiki and require its capability to read.
 
 Images preview inline. MP4, WebM and Ogg videos offer **Load video**, then play,
 pause, seeking, volume and **Fullscreen**. Videos load on request and do not
 autoplay. Use the player's exit control or Escape to leave fullscreen; mobile
 browsers may use their native player. Unsupported codecs can still be downloaded.
+Uploaded images also offer **Copy → Copy image**, which copies a PNG. Other
+image formats are converted to a still image; download to preserve the original
+format or animation. After loading an uploaded video, **Share video** appears
+if your device can share that file. Available share destinations depend on the
+device; **Download** remains available.
 JSON, JSON Lines, YAML, TOML/INI, CSV/TSV, logs, Markdown and common source files
 preview automatically with basic syntax highlighting. The initial preview shows
 up to **50 lines**. **Expand** opens the full text in a scrollable panel; **Show
 first 50 lines** collapses it. **Minimize** hides the text, and **Show preview**
 brings it back. Fenced code blocks use the same controls in wiki pages and chat.
+
+The **Copy** menu offers **Copy contents**, **Copy as Markdown** for a PR comment,
+and **Copy formatted text** for a document editor. Every option copies the full
+content, including lines beyond the preview and while minimized. Contents uses
+the original source; Markdown and formatted copies use the readable JSON layout
+when available. Markdown includes the attachment filename and a code fence.
+The receiving editor controls which rich formatting survives. If copying is
+blocked or unavailable, select text manually or download the attachment.
 
 JSON files up to 512 KiB are formatted for reading when possible, preserving
 large numbers exactly. Downloads keep the original bytes. Larger or malformed
@@ -123,6 +138,7 @@ support UTF-8; binary files and other encodings can still be downloaded.
 HTML, XML and SVG preview as source text and never run as documents.
 External images and video links load only after a click. Their **Download / open**
 action may open the host's viewer; use the browser's Save command in that case.
+External files do not offer the uploaded-file copy/share actions.
 Raw Markdown HTML remains literal text.
 
 Use **History** to inspect an earlier revision. **Restore this version** opens

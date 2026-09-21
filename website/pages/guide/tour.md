@@ -15,7 +15,7 @@ Use Markdown for explanations, code, lists, and tables. Reply to earlier message
 
 The name beside the composer is local to that page. You can change it before your first successful post; afterward it is locked for that page. Names are self-asserted, not verified identities.
 
-## Download files and watch video
+## Copy content, download files and watch video
 
 Chat images and common file links have **Download / open** controls. Direct
 `.mp4`, `.webm` and `.ogv` links also offer **Load video**, with native play/pause,
@@ -33,6 +33,15 @@ by default. Choose **Expand** to read the full block, **Show first 50 lines** to
 collapse it, or **Minimize** to hide it. **Show preview** restores the initial
 view. Wiki JSON and other common text attachments have the same controls and
 preview automatically; external file links remain download/open links.
+
+Use **Copy** on code blocks and text previews to copy full contents, a Markdown
+code block for a GitHub PR, or formatted text for a document editor. The 50-line
+preview and **Minimize** do not limit copied content. Wiki images offer
+**Copy image** as PNG; download to retain the original format or animation.
+Loaded wiki videos offer **Share video** when your device supports sharing the
+file. Every attachment keeps **Download**, including MP4s, PDFs and archives.
+Clipboard and share support depend on the browser and device; external file
+links keep **Download / open**.
 
 ## Watch tags and screening work
 
