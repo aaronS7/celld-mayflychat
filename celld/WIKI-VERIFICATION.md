@@ -17,12 +17,21 @@ metadata, resolved discussion/replies, unreferenced uploads, empty wikis, delete
 content exclusion, credential isolation, ticket replay, cancellation and existing
 output protection. Drafts remain in the editor and do not appear in exports.
 
+Single-page coverage checks `README.md` plus only referenced uploads, binary
+integrity, self-links, unresolved cross-page links, current discussion alongside
+historical Markdown, explicit revision selection, deleted-page history, missing
+and cross-wiki attachment references, code-example exclusion and shared export
+concurrency. Both served agent commands and eight native browser downloads
+(page/whole wiki × desktop/mobile × book/classic) are exercised. The page browser
+flow selects revision 1 while revision 2 exists and verifies the downloaded ZIP
+contains revision 1, with relative links and no unsaved draft.
+
 The exact 1 GiB boundary and ZIP overhead are checked arithmetically without
 allocating a GiB fixture. A disposable runtime with a reduced cap exercises HTTP
 413. A delayed object-store read exercises a concurrent edit during streaming:
 the response fails and status reports `export_changed`. Browser checks include
 download progress/completion, light/dark themes, mobile overflow and CSP. They
-do not test an actual Notion/Confluence import or Safari/device download behavior.
+do not test a GitHub PR upload, a Notion/Confluence import, or Safari/device download behavior.
 
 On 2026-09-22, the extended capacity test exported 2,000 synthetic pages while
 50 readers searched the same wiki. Local preparation took 683 ms; download and

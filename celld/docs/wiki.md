@@ -248,6 +248,68 @@ supplies the error. Wrong, expired or reused download tickets are rejected.
 Export follows `WIKI_ENABLED` and the existing wiki capability. There is no
 additional flag, provider call, storage binding or migration.
 
+## Export a page for a pull request
+
+Choose **Export page** beside **Edit** and **History**, on desktop or mobile,
+then **Prepare ZIP → Download ZIP**. The dialog identifies the saved page and
+revision being exported. A page opened from History exports that revision;
+unsaved drafts are excluded and remain in the editor. The ZIP contains:
+
+| Path | Contents |
+| --- | --- |
+| `README.md` | The selected saved Markdown, with attachment links rewritten to relative paths. |
+| `attachments/FILE_ID/FILENAME` | Only uploads referenced by that Markdown, with their original bytes. |
+| `_mayfly/page.json`, `_mayfly/manifest.json` | Source identity, selected revision, page metadata and archive format `mayfly-page`, version 1. |
+| `_mayfly/attachments.jsonl`, `_mayfly/references.json` | Original file names and paths, plus IDs of unresolved links to other wiki pages. |
+| `_mayfly/discussion.jsonl` | Current comments and replies, when present. This is current discussion even for a historical page export. |
+| `_mayfly/README.md` | Repository and pull request handoff instructions. |
+
+Images, videos, JSON and other uploaded files are copied without conversion.
+Repeated file references produce one attachment entry. Conventional Markdown
+inline links, image links, reference definitions and autolinks are supported,
+including links in lists. Code examples stay unchanged. A reference to an
+unavailable upload fails preparation with 409 (`export_attachment_missing`),
+including IDs belonging to another wiki. External URLs remain links; their
+contents are not fetched. Files referenced only in discussion are not bundled.
+
+Other pages and unreferenced uploads are excluded. Self-links become links to
+`README.md`; links to other `page:ID` targets remain unchanged. The dialog warns
+about those links and `_mayfly/references.json` lists their IDs for review.
+
+For GitHub, extract the archive into a folder on your repository branch, such as
+`docs/my-page/`. Review the Markdown, replace links to other wiki pages, and
+commit `README.md` and `attachments/` together. Include `_mayfly/` if you also
+want the source metadata and discussion, then open a pull request normally.
+GitHub resolves [relative Markdown links within the repository](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#relative-links).
+
+The export supplies files for a PR; it does not create a branch or publish a PR.
+For a PR description or comment, [upload files in GitHub's editor](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/attaching-files)
+and use the links it supplies. Pasting Markdown alone does not upload the local
+attachments or make relative repository paths work in a PR description.
+
+Agents can export the current page or an explicit saved revision:
+
+```sh
+node wiki.mjs export-page 'FULL_WIKI_URL' PAGE_ID ./page-export.zip
+node wiki.mjs export-page 'FULL_WIKI_URL' PAGE_ID ./page-revision-3.zip 3
+```
+
+The same exclusive-file and incomplete-download protections apply as for whole
+wiki exports. Result JSON adds `scope:"page"`, `page` (ID, title, original path,
+revision and `file:"README.md"`) and `unresolved_pages` (other referenced page
+IDs). The current page must exist and not be deleted; an explicit revision can
+export a saved historical snapshot of a deleted page.
+
+For other clients, authenticated `POST /w/ID/pages/PAGE_ID/export` prepares the
+current page. Add `?revision=N` to select a saved snapshot. Use an empty body or
+`{}`. The 201 response adds the same page fields to the usual export plan. Use
+the existing `/w/ID/export/EXPORT_ID` status/cancel and ticket download routes.
+Unknown pages or revisions return 404; invalid revisions or query keys return
+400. Page and whole-wiki exports share the **1 GiB archive limit**, metadata
+bounds, one active export per wiki, ticket expiry and consistency rules above.
+Pause writes anywhere in the wiki until the export finishes; any wiki version
+change stops it. No additional feature flag or GitHub credentials are needed.
+
 ## Summarize saved knowledge
 
 When `AI_SUMMARY_ENABLED=1`, authenticated wiki metadata reports
@@ -448,6 +510,7 @@ authorization headers.
 | `HEAD /w/ID/attachments/ATTACHMENT_ID` | Authenticated metadata via Content-Type, Content-Length and Content-Disposition; no file body or R2 read. |
 | `GET /w/ID/attachments/ATTACHMENT_ID` | Authenticated original bytes with download disposition and encoded filename. No public file URL is created. |
 | `POST /w/ID/export` | Prepare current content; returns exact ZIP size and a single-use download ticket. See [exports](#export-a-wiki). |
+| `POST /w/ID/pages/PAGE_ID/export[?revision=N]` | Prepare one saved page and its referenced uploads for a repository/PR. See [page exports](#export-a-page-for-a-pull-request). |
 | `GET /w/ID/export/EXPORT_ID` | Authenticated export status and progress. |
 | `DELETE /w/ID/export/EXPORT_ID` | Cancel a prepared/running export. |
 | `POST /w/ID/export/EXPORT_ID/download` | Stream the ZIP using a URL-encoded `ticket` form body. |

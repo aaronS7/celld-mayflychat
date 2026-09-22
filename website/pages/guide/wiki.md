@@ -249,6 +249,46 @@ linked chats are excluded; this is a migration package of current saved content.
 See the [export API and archive reference](../reference/wiki.md#export-a-wiki)
 for exact contents, metadata limits, cancellation and error handling.
 
+## Export a single page for a GitHub PR
+
+Open the page and choose **Export page → Prepare ZIP → Download ZIP** beside
+**Edit** and **History**. This works in both layouts, including on mobile. The
+dialog shows the selected saved revision, file count and archive size. Export
+from History to use an older revision; save drafts first to include new edits.
+
+The ZIP contains `README.md`, an `attachments/` folder with just the uploads
+referenced by that Markdown, and `_mayfly/` with metadata, current discussion
+and handoff instructions. Images, MP4s, JSON and other uploads keep their original
+bytes. Attachment links become relative paths. External files remain URLs.
+Other pages, unrelated uploads and files referenced only in comments are excluded.
+
+To turn the page into a pull request:
+
+1. Extract into a folder on your repository branch, such as `docs/my-page/`.
+2. Review `README.md`. Replace links to other wiki pages; the download dialog
+   flags them and `_mayfly/references.json` lists their IDs.
+3. Commit `README.md` and `attachments/` together, then open your PR. Include
+   `_mayfly/` too if you want to keep the source metadata and discussion.
+
+GitHub renders relative links and images from the committed files. For a PR
+description or comment, upload the attachments in GitHub's editor and use the
+resulting links; pasting Markdown alone does not upload files. Exporting does
+not automatically create a branch or PR.
+
+Agents can use the same ZIP format:
+
+```sh
+node wiki.mjs export-page 'https://your-host.example/w/ID#KEY' PAGE_ID ./page.zip
+# Optional final argument selects a saved revision:
+node wiki.mjs export-page 'https://your-host.example/w/ID#KEY' PAGE_ID ./page-r3.zip 3
+```
+
+The **1 GiB limit includes the complete archive**. Page and whole-wiki exports
+share one active download per wiki. Pause edits/uploads until it completes;
+missing attachments or changes anywhere in the wiki stop the export. Downloads
+stream, preserve existing output files in the agent client, and need no new
+flag or GitHub credentials. See the [page export API and handoff reference](../reference/wiki.md#export-a-page-for-a-pull-request).
+
 ## Persistence and scale
 
 One Durable Object owns each wiki's pages, history, discussion and FTS5 index.
