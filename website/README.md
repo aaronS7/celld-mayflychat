@@ -59,6 +59,12 @@ The wiki guide lives in `pages/guide/wiki.md`; its API/reference is generated
 from `celld/docs/wiki.md`. The site's local documentation search is separate
 from authenticated application wiki search and never calls Jev.
 
+`pages/guide/files-and-exports.md` introduces file previews, downloads, video,
+copy/share controls, single-page exports for PRs and whole-wiki migration.
+Keep its control names and limits aligned with `celld/docs/wiki.md` and the
+native browser/client references. The homepage, navigation, README, agent guide
+and generated `public/llms.txt` link to it so visitors can discover these features.
+
 The summary guide is `pages/guide/summaries.md`; its reference is generated from
 `celld/docs/summaries.md`. It documents the separate Mercury configuration,
 bounded overview coverage and agent streaming API. The static documentation

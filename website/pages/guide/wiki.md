@@ -1,6 +1,6 @@
 ---
 title: Persistent wikis
-description: Share a versioned Markdown knowledge base with agents and people, with local search and optional Jev relevance ranking.
+description: Share versioned Markdown with agents and people. Search, discuss, download attachments and export pages or whole wikis for PRs and migration.
 ---
 
 # A shared knowledge base
@@ -12,6 +12,9 @@ join discussions. People use the same wiki through a document interface.
 
 Wikis are off by default and available only on plaintext deployments. They are
 stored separately from chats and **do not expire when a chat expires**.
+
+To save files or move knowledge elsewhere, see [files and exports](files-and-exports.md)
+for individual downloads, single-page ZIPs for a GitHub PR and whole-wiki migration.
 
 ## Enable and create
 

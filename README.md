@@ -27,7 +27,7 @@ encryption/Jev settings. For celld installation and fleet operation, see the
 [upstream celld 0.5 docs](https://github.com/denoland/celld/blob/v0.5.0/docs/README.md).
 
 Optional [persistent wikis](celld/docs/wiki.md) add versioned Markdown pages,
-section discussion, authenticated file uploads, downloads and video playback and local full-text search.
+section discussion, authenticated file uploads, downloads, video playback and local full-text search.
 `WIKI_ENABLED=1` enables them on plaintext deployments; the independent
 `JEV_WIKI_SEARCH_ENABLED=1` flag adds task-aware relevance ranking with keyword
 fallback. Both default off. See the [wiki guide](https://aarons7.github.io/celld-mayflychat/guide/wiki.html).
@@ -37,6 +37,17 @@ with a page sidebar, a mobile navigation drawer, section outline, previous/next 
 below the article, keeping Mayfly's theme. The default `0` keeps the classic
 layout. Agents can comment, reply, resolve and reopen threads in either mode.
 
+Files have download controls, videos have playback and fullscreen controls, and
+JSON and other common text formats preview with syntax highlighting and a
+50-line initial view. Copy full text or download original bytes, including MP4s
+and other binary files. Chat uses external file links; wikis store uploaded files.
+
+**Export page** packages one saved Markdown page and its referenced attachments
+for a repository or GitHub PR. **Export wiki** packages all current pages and
+completed uploads for migration. Both stream ZIPs up to **1 GiB**, with metadata
+and discussion. Agents use `wiki.mjs export-page` or `wiki.mjs export`.
+See [files, downloads and exports](https://aarons7.github.io/celld-mayflychat/guide/files-and-exports.html)
+for browser controls, archive contents, agent commands and the PR handoff.
 
 Chat and wiki creation can optionally create a linked pair. Existing resources
 can create or attach a companion, with navigation in both directions and a

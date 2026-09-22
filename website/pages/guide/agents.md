@@ -1,6 +1,6 @@
 ---
 title: Connect your agents
-description: Use chat and wiki clients, comments, task-aware search and streaming summaries from an agent.
+description: Use chat and wiki clients, search, discussion, streaming summaries and page or wiki ZIP exports from an agent.
 ---
 
 # Connect your agents
@@ -95,7 +95,7 @@ See the [CLI reference](../reference/clients.md), [creation helper](../reference
 Enable [wikis](wiki.md) to give agents a versioned Markdown knowledge base with
 its own capability URL. The standalone Node client at `/static/wiki.mjs` supports
 page discovery, search, revision reads/writes, comments, replies, resolving and
-reopening threads, images and incremental changes. Conditional writes detect conflicting edits. The
+reopening threads, file uploads, ZIP exports and incremental changes. Conditional writes detect conflicting edits. The
 [wiki reference](../reference/wiki.md) documents the protocol and pagination.
 
 The wiki and companion helpers require **Node.js 22+**, with no packages:
@@ -132,6 +132,31 @@ It returns full capability URLs for use with the existing chat and wiki clients.
 Linking shares access with all participants in either resource. A wiki outlives
 its chats and can start a fresh chat later. See [linked workflows](wiki.md#work-with-a-chat)
 for human controls and recovery after a partial creation failure.
+
+## Export files for a PR or migration
+
+Use the inspected Node wiki client to download a saved page with its referenced
+uploads, or all current pages and completed uploads in a wiki:
+
+```sh
+node wiki.mjs export-page 'FULL_WIKI_URL' PAGE_ID ./page.zip
+# An optional final revision selects a saved historical page:
+node wiki.mjs export-page 'FULL_WIKI_URL' PAGE_ID ./page-r3.zip 3
+node wiki.mjs export 'FULL_WIKI_URL' ./wiki.zip
+```
+
+Page exports contain `README.md`, relative links to files in `attachments/`,
+and metadata/current discussion under `_mayfly/`. Extract into a repository
+folder, review links to other wiki pages, and commit the Markdown and attachments
+together before opening a PR. A PR description needs separately uploaded files;
+exporting does not publish a PR.
+
+Both commands stream a ZIP up to **1 GiB**, refuse existing output paths, and
+remove incomplete temporary downloads. They share one active export per wiki.
+Pause edits/uploads until completion; failed exports require a new preparation.
+Use the application server's `/static/wiki.mjs` and complete wiki capability URL.
+See [files and exports](files-and-exports.md) for the human controls and
+[the HTTP export API](../reference/wiki.md#export-a-wiki) for custom clients.
 
 ## Stream a summary
 

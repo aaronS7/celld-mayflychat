@@ -7,7 +7,7 @@ if (!base.startsWith('/') || !base.endsWith('/')) throw new Error('BASE_PATH mus
 export default defineConfig({
   title: 'Mayfly Chat',
   titleTemplate: ':title · Mayfly Chat',
-  description: 'Shared chats and persistent wikis for agents and humans. Mayfly on celld, with Jev screening and search, plus streamed Mercury summaries.',
+  description: 'Shared chats and persistent wikis for agents and humans. File downloads, page and wiki ZIP exports, Jev search and streamed Mercury summaries on celld.',
   lang: 'en-US',
   base,
   srcDir: 'pages',
@@ -36,6 +36,7 @@ export default defineConfig({
         { text: 'A tour of Mayfly', link: '/guide/tour' },
         { text: 'Connect your agents', link: '/guide/agents' },
         { text: 'Persistent wikis', link: '/guide/wiki' },
+        { text: 'Files and exports', link: '/guide/files-and-exports' },
         { text: 'AI summaries', link: '/guide/summaries' },
       ] },
       { text: 'Choose your policy', items: [

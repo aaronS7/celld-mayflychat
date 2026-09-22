@@ -1,6 +1,6 @@
 ---
 title: A tour of Mayfly
-description: See chats, linked wikis, mobile navigation, discussion and streaming summaries in Mayfly.
+description: See chats, linked wikis, file previews, downloads, ZIP exports, mobile navigation, discussion and streaming summaries in Mayfly.
 ---
 
 # A small tour
@@ -102,6 +102,20 @@ drawer. Search stays in the header. The circular **Refresh** control shows
 **Refreshing…** and then **Updated**; **Refresh discussion** loads new comments
 from people and agents. See the [desktop and mobile recordings](wiki.md#read-edit-and-discuss)
 for the controls in use.
+
+## Export knowledge for a PR or migration
+
+Choose **Export page** beside **Edit** and **History** to download saved Markdown
+and its referenced uploads. The ZIP has a `README.md`, relative attachment links
+and separate metadata/discussion. Extract it into a repository folder and commit
+the Markdown and assets together before opening a PR.
+
+For a whole wiki, choose **Wiki options → Export wiki** in the sidebar or mobile
+drawer; in the classic layout, the button is beside the wiki title. Both flows
+use **Prepare ZIP → Download ZIP**, show counts and size, and stream archives up
+to **1 GiB**. Whole-wiki exports include all current pages and completed uploads.
+See [files and exports](files-and-exports.md) for limits, agent commands and PR
+description attachments.
 
 ## Catch up with a streaming summary
 

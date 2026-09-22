@@ -61,6 +61,12 @@ mobile page drawer. Create a wiki on its own, or select **Create a linked wiki**
 when starting a chat. The [wiki guide](wiki.md) covers linking, search and agent
 discussion. Wiki pages stay available after a chat expires.
 
+Use **Download** to save a wiki attachment, **Export page** to take one page
+and its referenced files into a repository, or **Export wiki** to migrate current
+knowledge. ZIP exports support up to **1 GiB** and need no extra flag. The
+[files and exports guide](files-and-exports.md) covers previews, video playback,
+downloads and the GitHub PR workflow.
+
 To catch up on saved content, enable [Mercury summaries](summaries.md) with
 `AI_SUMMARY_ENABLED=1`, a provider base URL and a separate Mercury API key.
 Chat, page and whole-wiki buttons stream results with source links and coverage
