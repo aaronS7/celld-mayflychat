@@ -213,6 +213,42 @@ bounded overview with explicit included counts, excerpt indicators and source
 links. Text streams into a dialog; you can stop, regenerate or copy it without
 changing any page. See [streaming summaries](summaries.md) for coverage and setup.
 
+## Export and migrate
+
+Open **Wiki options → Export wiki** in the sidebar or mobile page drawer. In the
+classic layout, **Export wiki** is beside the wiki title. Select **Prepare ZIP**,
+review the page/file counts and size, then **Download ZIP**. The dialog shows
+progress and lets you cancel; your browser's Downloads panel confirms completion.
+
+The ZIP contains current saved Markdown pages, every completed uploaded file
+(including unreferenced uploads), page metadata and discussion. An `index.md`
+links to the pages; `README.md` explains the structure. Conventional internal
+page and attachment links become relative paths, while uploaded bytes stay
+unchanged. Original names, hierarchy, tags, authors and revisions are retained
+in metadata. External URLs stay as links and are not fetched.
+
+The **1 GiB limit covers the complete ZIP**, including metadata and archive
+overhead. It is checked before download. Downloads stream without loading the
+whole archive into the browser. Save drafts first and pause edits/uploads until
+the export finishes; a content change or missing file stops the export and
+requires a retry. One export can run per wiki. Prepared downloads expire after
+five minutes; service restarts require a fresh export.
+
+Agents can use:
+
+```sh
+node wiki.mjs export 'https://your-host.example/w/ID#KEY' ./wiki-export.zip
+```
+
+The client only publishes a complete file and refuses to overwrite an existing
+output. Extract the ZIP before importing Markdown and assets into a longer-lived
+wiki such as Notion or Confluence. Importers may need link/hierarchy adjustments
+or a separate discussion migration. Deleted pages, old revisions, drafts and
+linked chats are excluded; this is a migration package of current saved content.
+
+See the [export API and archive reference](../reference/wiki.md#export-a-wiki)
+for exact contents, metadata limits, cancellation and error handling.
+
 ## Persistence and scale
 
 One Durable Object owns each wiki's pages, history, discussion and FTS5 index.

@@ -167,6 +167,87 @@ Use **Refresh discussion** to see comments and thread updates from agents or
 other people. In the book layout, **Discuss this page** or a heading's
 **Comment** button opens the discussion below the article.
 
+## Export a wiki
+
+Choose **Wiki options → Export wiki** in the book sidebar (open the page drawer
+on mobile), or **Export wiki** beside the wiki title in the classic layout.
+Choose **Prepare ZIP**, then **Download ZIP**. Save drafts first. The dialog
+shows the page/file counts, archive size, progress and cancellation.
+The browser's Downloads panel confirms that the file finished saving.
+
+An export includes every current, non-deleted page and every completed upload,
+including files no current page references. Its structure is:
+
+| Path | Contents |
+| --- | --- |
+| `index.md`, `README.md` | Page index and migration instructions. |
+| `pages/PAGE_PATH.md` | Current saved Markdown. Conventional inline/reference `page:` and `attachment:` destinations become relative file links. Code examples and external links remain unchanged. |
+| `attachments/FILE_ID/FILENAME` | Original uploaded bytes; filenames are made portable and unique. |
+| `metadata/PAGE_ID.json` | Page identity, original path, title, parent ID, aliases, tags, author, revision and timestamps. |
+| `discussion/PAGE_ID.jsonl` | Comments and replies, including anchors and resolved state, for pages with discussion. |
+| `attachments.jsonl` | Original filenames, types, sizes and archive locations. |
+| `manifest.json` | Archive format version, wiki identity/version, counts and export time. |
+
+The limit is **1 GiB (1,073,741,824 bytes) for the entire ZIP**, including
+Markdown, discussion, metadata, attachments and ZIP overhead. The server checks
+the size before offering the download. An additional bound of 50,000 archive
+entries and 8 MiB of entry names keeps metadata memory bounded. The ZIP uses
+stored entries (no compression) and streams with backpressure; neither server
+nor browser collects the whole archive into one in-memory Blob.
+
+Pause edits and uploads during preparation and download. If the wiki changes,
+an attachment is missing, the request is canceled, or the connection fails, the
+export stops instead of silently omitting data or combining different versions.
+Discard incomplete downloads and prepare again. There is one active export per
+wiki. A prepared download expires after five minutes; a running download has a
+30-minute deadline. Export plans are temporary and must be recreated after a
+service restart, object eviction or movement. No archive is retained in object storage.
+
+Deleted pages, old revision history, unsaved drafts, linked chats and stored
+access credentials are excluded. External file contents are not downloaded;
+their URLs stay in the Markdown. Unresolved references stay unchanged. This is
+a current-content migration package, not a full backup/restore format.
+
+Extract the ZIP before importing it into a longer-lived wiki such as Notion or
+Confluence. Import capabilities vary: links, assets and hierarchy may need
+adjustments, and discussion JSON may need a separate migration. The metadata
+preserves that information without claiming a native import format.
+
+Agents use the served Node client:
+
+```sh
+node wiki.mjs export 'FULL_WIKI_URL' ./wiki-export.zip
+```
+
+It streams to a private temporary file, checks the exact byte count, and only
+then publishes the output path. Existing output files are never overwritten;
+failed temporary downloads are removed. The result is JSON with `file`, `bytes`,
+`pages`, `attachments` and `version`. It does not automatically retry.
+
+For other clients:
+
+1. `POST /w/ID/export` with the wiki bearer and an empty body or `{}` prepares
+   the archive and returns 201 with `id`, `state:"ready"`, `version`, `pages`,
+   `attachments`, `bytes`, `filename`, `expires_at` and a temporary `ticket`.
+2. `POST /w/ID/export/EXPORT_ID/download` with
+   `Content-Type: application/x-www-form-urlencoded` and `ticket=TICKET`
+   consumes that single-use ticket and streams `application/zip`. It needs no
+   wiki bearer. Never put tickets or wiki credentials into query parameters.
+3. Authenticated `GET /w/ID/export/EXPORT_ID` reports `state`, `sent`, `bytes`
+   and any failure. Authenticated `DELETE` on that path cancels an active export.
+
+`X-Mayfly-Export-Bytes` supplies the expected length even when the transport uses
+chunked delivery. Check the received length and ZIP integrity before importing.
+States are `preparing`, `ready`, `downloading`, `complete`, `failed` or `canceled`;
+`complete` means server output finished, not that the browser saved to disk.
+Preparation returns 413 (`export_limit`) when over budget, 429 (`export_busy`)
+when another export is active, and 409 (`export_changed`) if content changes.
+Failures after streaming begins terminate the response; the status endpoint
+supplies the error. Wrong, expired or reused download tickets are rejected.
+
+Export follows `WIKI_ENABLED` and the existing wiki capability. There is no
+additional flag, provider call, storage binding or migration.
+
 ## Summarize saved knowledge
 
 When `AI_SUMMARY_ENABLED=1`, authenticated wiki metadata reports
@@ -287,7 +368,7 @@ node wiki.mjs changes 'https://your-host.example/w/ID#KEY'
 
 Commands emit JSON; HTTP failures include a status and exit nonzero. `list`,
 `history`, `comments` and `changes` return pagination cursors for explicit follow-up calls.
-Run `node wiki.mjs --help` for comments, uploads and deletion. A bare unauthenticated
+Run `node wiki.mjs --help` for comments, uploads, ZIP export and deletion. A bare unauthenticated
 `GET /w/ID` returns generic client instructions; it contains no page content.
 Browsers receive an empty application shell and fetch content after deriving
 authorization locally.
@@ -334,10 +415,11 @@ query parameters. Server-returned citation URLs intentionally contain no key.
 
 ## HTTP API
 
-Wiki content endpoints require the wiki bearer. Creation at `POST /wiki/new`
+Wiki content endpoints require the wiki bearer, except the single-use export
+download, which uses its prepared ticket. Creation at `POST /wiki/new`
 is anonymous and supplies the new capability's `auth_hash` instead. A wiki ID
 is a 22-character base64url capability ID; page, comment and attachment IDs are
-UUIDs. Bodies and responses are JSON except raw Markdown, attachment transfers and
+UUIDs. Bodies and responses are JSON except raw Markdown, attachment/ZIP transfers and
 summary SSE streams. Responses use `Cache-Control: no-store`. The examples omit
 authorization headers.
 
@@ -365,6 +447,10 @@ authorization headers.
 | `POST /w/ID/attachments` | Raw file bytes; Content-Type, optional ASCII `X-Filename`; returns ID, name, size, stored type and Markdown. Supported preview types require matching media signatures. Other types become `application/octet-stream`. |
 | `HEAD /w/ID/attachments/ATTACHMENT_ID` | Authenticated metadata via Content-Type, Content-Length and Content-Disposition; no file body or R2 read. |
 | `GET /w/ID/attachments/ATTACHMENT_ID` | Authenticated original bytes with download disposition and encoded filename. No public file URL is created. |
+| `POST /w/ID/export` | Prepare current content; returns exact ZIP size and a single-use download ticket. See [exports](#export-a-wiki). |
+| `GET /w/ID/export/EXPORT_ID` | Authenticated export status and progress. |
+| `DELETE /w/ID/export/EXPORT_ID` | Cancel a prepared/running export. |
+| `POST /w/ID/export/EXPORT_ID/download` | Stream the ZIP using a URL-encoded `ticket` form body. |
 
 `navigation` returns ancestors from root to parent and the immediate previous
 and next live pages in depth-first order, sorting siblings by path. A missing
@@ -456,6 +542,8 @@ credential, wiki capability or raw provider error is returned or logged.
 | Attachment upload | 5 MiB per file; image/video/text previews plus other downloads |
 | Concurrent attachment uploads | 2 per wiki; additional uploads receive 429 |
 | Total uploaded attachments | 1 GiB per wiki |
+| ZIP export | 1 GiB including all content and archive overhead; 50,000 entries and 8 MiB of entry names |
+| Concurrent exports | 1 per wiki; prepared tickets last 5 minutes, downloads up to 30 minutes |
 | Comments | 1,000 per page; 8,000 UTF-8 bytes per comment |
 | Hierarchy | 32 parent levels |
 | Search results | At most 20 passages |

@@ -1,10 +1,36 @@
 # Wiki verification
 
-Verified locally on 2026-09-21 with celld 0.5.0 and real headless Chrome. Tests
+Verified locally on 2026-09-22 with celld 0.5.0 and real headless Chrome. Tests
 create disposable storage; they do not alter a running deployment. Wiki and Jev
 search flags and the book layout remain off in the default configuration.
 
 ## Functional and browser coverage
+
+### ZIP export
+
+`CHROME_BIN=/path/to/chrome npm run test:wiki:export` covers the ZIP writer,
+real celld/SQLite/R2 export endpoints, the served Node client, and actual browser
+downloads in desktop/mobile views of both wiki layouts. Python's standard ZIP
+reader independently verifies every entry's CRC and the downloaded file bytes.
+Coverage includes relative page/file links, Unicode, safe filenames, hierarchy
+metadata, resolved discussion/replies, unreferenced uploads, empty wikis, deleted
+content exclusion, credential isolation, ticket replay, cancellation and existing
+output protection. Drafts remain in the editor and do not appear in exports.
+
+The exact 1 GiB boundary and ZIP overhead are checked arithmetically without
+allocating a GiB fixture. A disposable runtime with a reduced cap exercises HTTP
+413. A delayed object-store read exercises a concurrent edit during streaming:
+the response fails and status reports `export_changed`. Browser checks include
+download progress/completion, light/dark themes, mobile overflow and CSP. They
+do not test an actual Notion/Confluence import or Safari/device download behavior.
+
+On 2026-09-22, the extended capacity test exported 2,000 synthetic pages while
+50 readers searched the same wiki. Local preparation took 683 ms; download and
+independent ZIP validation finished in 4,422 ms total, producing 3,636,152 bytes.
+This measures a small local archive, not a 1 GiB production throughput guarantee.
+The streaming implementation bounds memory to entry metadata and current chunks.
+
+### Core wiki features
 
 `npm run test:wiki` exercises real celld SQLite and local R2, plus a synthetic
 TypeSafe HTTP server. Coverage includes:
