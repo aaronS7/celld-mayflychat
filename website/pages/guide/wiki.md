@@ -110,7 +110,8 @@ Use it to save the original file before moving it into a folder or attaching it
 to a GitHub pull request, including videos, PDFs and archives.
 Uploaded files belong to the wiki and require its capability to read.
 
-Images preview inline. MP4, WebM and Ogg videos offer **Load video**, then play,
+Images, including SVGs, preview inline. Uploaded SVGs render in an image context,
+without adding their markup to the page. MP4, WebM and Ogg videos offer **Load video**, then play,
 pause, seeking, volume and **Fullscreen**. Videos load on request and do not
 autoplay. Use the player's exit control or Escape to leave fullscreen; mobile
 browsers may use their native player. Unsupported codecs can still be downloaded.
@@ -138,7 +139,7 @@ large numbers exactly. Downloads keep the original bytes. Larger or malformed
 JSON stays readable as source. Very long lines initially show up to 16,384 characters,
 and highlighting is bounded so large outputs remain responsive. Text previews
 support UTF-8; binary files and other encodings can still be downloaded.
-HTML, XML and SVG preview as source text and never run as documents.
+HTML and XML preview as source text. SVGs render as images and download as files.
 External images and video links load only after a click. Their **Download / open**
 action may open the host's viewer; use the browser's Save command in that case.
 External files do not offer the uploaded-file copy/share actions.

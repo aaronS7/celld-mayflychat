@@ -120,7 +120,7 @@ test("encryption, moderation, and automatic tagging on celld 0.5", { timeout: 36
   let first;
   await t.test("defaults are plaintext, authenticated, and unmoderated; format cannot be bypassed", async () => {
     await start();
-    assert.deepEqual((await http("/config")).body, { protocol: 2, encryption: false, moderation: false, tagging: false, postingAllowed: true });
+    assert.deepEqual((await http("/config")).body, { protocol: 2, encryption: false, moderation: false, tagging: false, postingAllowed: true, wiki: { enabled: false, relevance: false, layout: "classic" }, summary: { enabled: false } });
     first = await create();
     assert.equal((await http(first.path + "/config")).status, 401);
     assert.equal((await http(first.path + "/events")).status, 401);

@@ -92,18 +92,21 @@ export class Fleet {
     const source = await readFile(join(root, "wrangler.jsonc"), "utf8");
     const config = JSON.parse(source.replace(/^\s*\/\/.*$/gm, ""));
     if (this.state.trustProxy) config.vars.TRUST_PROXY = "1";
-    for (const name of ["ENCRYPTION_ENABLED", "JEV_ENABLED", "JEV_TAGGING_ENABLED", "TYPESAFE_MODEL"]) {
+    for (const name of ["ENCRYPTION_ENABLED", "JEV_ENABLED", "JEV_TAGGING_ENABLED", "WIKI_ENABLED", "JEV_WIKI_SEARCH_ENABLED", "WIKI_BOOK_LAYOUT_ENABLED", "TYPESAFE_MODEL", "AI_SUMMARY_ENABLED", "MERCURY_BASE_URL", "MERCURY_MODEL"]) {
       const value = process.env[name] ?? this.state.vars?.[name];
       if (value !== undefined) config.vars[name] = value;
     }
     Object.assign(config.vars, vars);
     assert.ok(["0", "1"].includes(config.vars.ENCRYPTION_ENABLED), "ENCRYPTION_ENABLED must be 0 or 1");
+    assert.ok(["0", "1"].includes(config.vars.WIKI_ENABLED), "WIKI_ENABLED must be 0 or 1");
     if (config.vars.ENCRYPTION_ENABLED === "0") {
       for (const name of ["JEV_ENABLED", "JEV_TAGGING_ENABLED"]) assert.ok(["0", "1"].includes(config.vars[name]), `${name} must be 0 or 1`);
+      if (config.vars.WIKI_ENABLED === '1') assert.ok(['0', '1'].includes(config.vars.WIKI_BOOK_LAYOUT_ENABLED), 'WIKI_BOOK_LAYOUT_ENABLED must be 0 or 1');
+      if (config.vars.WIKI_ENABLED === '1') assert.ok(['0', '1'].includes(config.vars.JEV_WIKI_SEARCH_ENABLED), 'JEV_WIKI_SEARCH_ENABLED must be 0 or 1');
     }
     if (config.vars.ENCRYPTION_ENABLED === "1") {
       delete config.vars.TYPESAFE_API_KEY;
-    } else if (config.vars.JEV_ENABLED === "1" || config.vars.JEV_TAGGING_ENABLED === "1") {
+    } else if (config.vars.JEV_ENABLED === "1" || config.vars.JEV_TAGGING_ENABLED === "1" || config.vars.WIKI_ENABLED === '1' && config.vars.JEV_WIKI_SEARCH_ENABLED === '1') {
       let key = process.env.TYPESAFE_API_KEY;
       if (!key) {
         const file = join(root, "typesafe.celld.env");
@@ -119,12 +122,20 @@ export class Fleet {
       config.vars.TYPESAFE_API_KEY = key.trim();
       this.privateValues = new Set([...(this.privateValues || []), key.trim()]);
     } else delete config.vars.TYPESAFE_API_KEY;
+    if (config.vars.ENCRYPTION_ENABLED === '0') assert.ok(['0','1'].includes(config.vars.AI_SUMMARY_ENABLED), 'AI_SUMMARY_ENABLED must be 0 or 1');
+    if (config.vars.ENCRYPTION_ENABLED === '0' && config.vars.AI_SUMMARY_ENABLED === '1') {
+      const key = process.env.MERCURY_API_KEY ?? vars.MERCURY_API_KEY;
+      assert.ok(key?.trim() && !/[\r\n]/.test(key), 'Summaries require MERCURY_API_KEY in the environment or private deployment bindings');
+      assert.ok(config.vars.MERCURY_BASE_URL, 'Summaries require MERCURY_BASE_URL');
+      config.vars.MERCURY_API_KEY = key.trim();
+      this.privateValues = new Set([...(this.privateValues || []), key.trim()]);
+    } else delete config.vars.MERCURY_API_KEY;
     const deploymentFile = join(this.project, "wrangler.jsonc");
     await writeFile(deploymentFile, JSON.stringify(config, null, 2), { mode: 0o600 });
     await chmod(deploymentFile, 0o600);
     const output = await this.command(["deploy", this.project, "--json"], "deploy");
     this.state.deployment = JSON.parse(output.trim());
-    this.state.vars = Object.fromEntries(Object.entries(config.vars).filter(([name]) => name !== "TYPESAFE_API_KEY"));
+    this.state.vars = Object.fromEntries(Object.entries(config.vars).filter(([name]) => !["TYPESAFE_API_KEY", "MERCURY_API_KEY"].includes(name)));
     await this.save();
     for (const node of this.state.nodes) {
       if (await this.running(node)) {

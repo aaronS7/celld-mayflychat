@@ -1,0 +1,23 @@
+{
+  "description": "Synthetic, human-judged retrieval cases. Judgments use the wiki relevance rubric (0–3); they are expected relevance, not model outputs.",
+  "pages": [
+    {"path":"operations/failover","title":"Lease failover","aliases":["node failure","ownership transfer"],"tags":["operations"],"markdown":"# Lease failover\n\n## Recovery\nTo preserve acknowledged writes after an owner fails, first fence the old owner. Wait for its lease to expire, replay the committed journal on a replica, acquire a higher ownership epoch, and then resume writes. Never accept two owners for the same object.\n"},
+    {"path":"operations/restart","title":"Restart a node","aliases":[],"tags":["operations"],"markdown":"# Restart a node\n\nCheck process health and restart the daemon. This process checklist does not transfer ownership or establish that writes are durable. Follow the lease failover procedure when an owner is unavailable.\n"},
+    {"path":"operations/backups","title":"Backup recovery","aliases":["restore snapshot"],"tags":["operations"],"markdown":"# Backup recovery\n\n## Restore an older snapshot\nUse this procedure to recover an earlier state after an accidental deletion. Stop writes, select a snapshot from before the deletion, restore it, and inspect the recovered data before resuming. Changes after that snapshot are absent.\n"},
+    {"path":"editing/conflicts","title":"Concurrent edits","aliases":["lost update","revision conflict"],"tags":["editing"],"markdown":"# Concurrent edits\n\n## Merge a stale draft\nIf an update returns 412, read the current page and its revision. Preserve your draft, compare both versions, merge the intended changes, and submit with the new If-Match revision. Do not blindly retry a stale replacement.\n"},
+    {"path":"privacy/capabilities","title":"Sharing access","aliases":["wiki key","capability link"],"tags":["privacy"],"markdown":"# Sharing access\n\nThe complete wiki URL contains a secret fragment. Anyone holding it can read, edit and delete the wiki. Share the full link only with intended participants. Names on edits and comments are self-reported.\n"},
+    {"path":"chat/retention","title":"Chat retention","aliases":["chat expiry"],"tags":["chat"],"markdown":"# Chat retention\n\nTransient chats expire after their configured idle interval. Accepted posts refresh that interval; reads do not. Persistent wikis have a separate lifecycle and are not deleted when a chat expires.\n"},
+    {"path":"web/caching","title":"Browser cache","aliases":[],"tags":["web"],"markdown":"# Browser cache\n\nAn HTTP cache stores response bytes. This is unrelated to restoring a storage snapshot or recovering ownership of a failed node. Authenticated wiki responses use no-store.\n"},
+    {"path":"notes/planning","title":"Planning notes","aliases":[],"tags":["notes"],"markdown":"# Planning notes\n\nThe team discussed node failure, recovery, leases, backup storage, concurrent edits and sharing. This agenda records topics only; it contains no recovery or editing procedure.\n"}
+  ],
+  "cases": [
+    {"name":"exact title","search":{"query":"Concurrent edits"},"judgments":{"editing/conflicts":3,"notes/planning":1},"top":"editing/conflicts"},
+    {"name":"alias lookup","search":{"query":"ownership transfer"},"judgments":{"operations/failover":3,"operations/restart":2}},
+    {"name":"related terms bridge vocabulary","search":{"query":"splitbrain","related_terms":["fence","lease"],"context":"Prevent two active writers after an owner fails"},"judgments":{"operations/failover":3,"notes/planning":1},"without_related_terms":[]},
+    {"name":"task context preserves acknowledged writes","search":{"query":"recovery","context":"Recover from owner failure without losing acknowledged writes"},"judgments":{"operations/failover":3,"operations/backups":1,"notes/planning":1,"web/caching":0}},
+    {"name":"same query with a different task","search":{"query":"recovery","context":"Recover a page that was deleted last week by restoring an earlier snapshot"},"judgments":{"operations/backups":3,"operations/failover":1,"notes/planning":1,"web/caching":0}},
+    {"name":"exact tag filter","search":{"query":"wiki","tag":"privacy"},"judgments":{"privacy/capabilities":3},"only":["privacy/capabilities"]},
+    {"name":"path scope","search":{"query":"recovery","path":"operations/"},"judgments":{"operations/failover":3,"operations/backups":3},"only":["operations/failover","operations/backups"]},
+    {"name":"no lexical evidence","search":{"query":"quasarxyz"},"judgments":{},"only":[]}
+  ]
+}

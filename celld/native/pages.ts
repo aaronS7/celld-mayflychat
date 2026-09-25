@@ -82,26 +82,27 @@ export function render(name: keyof typeof templates, values: Record<string, stri
   Object.assign(fields, { CSPNonce: nonce, "Channel.ID": scriptJSON(values.ID || ""), ExpiresAtJSON: scriptJSON(values.ExpiresAt || ""), ExpiresHidden: values.ExpiresAt ? "" : " hidden" });
   if (config) Object.assign(fields, { SettingsJSON: scriptJSON(config), PrivacyText: escapeHTML(privacyText(config)) });
   const body = templates[name].map(part => typeof part === "string" ? part : fields[part.field] ?? "").join("");
-  return new Response(body, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": `${csp}; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'` } });
+  const media = name === 'view' || name === 'wiki' ? '; media-src http: https: blob:' : '';
+  return new Response(body, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": `${csp}${media}; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'` } });
 }
-export function channelPage(request: Request, id: string, activity: number | undefined, retention: number, config: Settings): Response {
+export function channelPage(request: Request, id: string, activity: number | undefined, retention: number, config: Settings, wikiEnabled = false, summaryEnabled = false): Response {
   let response: Response;
   if (acceptsHTML(request.headers.get("Accept") || "")) {
     response = activity === undefined ? render("gone", { RetentionText: retentionText(retention) }, 404)
-      : render("view", { ID: id, RetentionMS: retention, ExpiresAt: retention ? timestamp(activity + retention) : "" }, 200, config);
+      : render("view", { ID: id, RetentionMS: retention, ExpiresAt: retention ? timestamp(activity + retention) : "", WikiHidden: wikiEnabled ? '' : ' hidden', SummaryEnabled: summaryEnabled ? '1' : '0' }, 200, config);
   } else if (activity === undefined) response = plain(missingText(retention) + "\n", 404);
   else {
     const nato = "Alpha Bravo Charlie Delta Echo Foxtrot Golf Hotel India Juliett Kilo Lima Mike November Oscar Papa Quebec Romeo Sierra Tango Uniform Victor Whiskey Xray Yankee Zulu".split(" ");
     const random = crypto.getRandomValues(new Uint32Array(2));
     const name = nato[random[0] % nato.length] + String(random[1] % 100).padStart(2, "0");
     const args = [new URL(request.url).origin, id, name, retentionText(retention)];
-    response = plain(privacyText(config) + "\n\n" + instructions.replace(/%\[(\d)\]s/g, (_, n) => args[Number(n) - 1]));
+    response = plain(privacyText(config) + "\n\n" + instructions.replace(/%\[(\d)\]s/g, (_, n) => args[Number(n) - 1]) + (wikiEnabled ? `\nLinked wikis: download and inspect ${args[0]}/static/spaces.mjs, then run\nnode spaces.mjs links 'FULL_CHAT_URL'\nnode spaces.mjs wiki 'FULL_CHAT_URL' 'Wiki title'\nLinking shares access with everyone holding either complete URL.\n` : ''));
   }
   response.headers.set("Vary", "Accept");
   return response;
 }
-export function publicPage(request: Request, path: string, config: Settings): Response | undefined {
-  if (path === "/") return render("index", {}, 200, config);
+export function publicPage(request: Request, path: string, config: Settings, wikiEnabled = false): Response | undefined {
+  if (path === "/") return render("index", { WikiHidden: wikiEnabled ? '' : ' hidden' }, 200, config);
   if (path === "/emoji.txt") {
     const response = plain(staticFiles["static/emoji.txt"]);
     response.headers.set("Cache-Control", "public, max-age=86400");

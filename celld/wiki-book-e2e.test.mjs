@@ -1,0 +1,171 @@
+import assert from 'node:assert/strict';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import test from 'node:test';
+import { execute, page, post, wikiHarness } from './wiki-test-helper.mjs';
+
+test('book reading, navigation, search, editing and human/agent discussion work in Chrome', {timeout:90000}, async t=>{
+  assert.ok(process.env.CHROME_BIN,'Set CHROME_BIN to run the real wiki browser test');
+  const h=await wikiHarness(t,{WIKI_BOOK_LAYOUT_ENABLED:'1',JEV_WIKI_SEARCH_ENABLED:'1',TYPESAFE_API_KEY:'fixture-key'}),wiki=await h.create('Operations handbook');
+  const add=async value=>(await wiki.request('/pages',post(value))).body;
+  const intro=await add({...page('Overview','# Overview\n\n## Quick start\nRead the recovery instructions.\n\n## Agent workflow\nReview and discuss changes together.'),path:'a-overview'});
+  const recovery=await add({...page('Recovery','Recovery\n========\n\n## Preparation\nVerify the old owner has been fenced.\n\n## Recovery\nPreserve acknowledged writes during failover.\n\n```typescript\nconst safe = true;\n```\n\n## Verification\nRead the last acknowledged write.'),parent_id:intro.id});
+  const glossary=await add({...page('Glossary','# Glossary\n\n## Lease\nAn ownership lease.'),path:'z-glossary'});
+  for(let n=0;n<20;n++)await add({...page('Reference '+(n+1)),path:'zz-reference-'+String(n).padStart(2,'0')});
+  const client=join(h.directory,'wiki.mjs');await writeFile(client,(await h.http('/static/wiki.mjs')).text);
+  const refreshFile=join(h.directory,'refresh.md');await writeFile(refreshFile,'# Added by an agent\n\nRefresh should discover this page.');
+  const config={chrome:process.env.CHROME_BIN,profile:join(h.directory,'chrome'),url:wiki.url,base:h.base,client,refreshFile,intro:intro.id,recovery:recovery.id,glossary:glossary.id,key:wiki.key};
+  const harness=await readFile(new URL('../srv/testdata/chrome.cjs',import.meta.url),'utf8');
+  const exercise=String.raw`
+const execFile=require('node:util').promisify(require('node:child_process').execFile);
+async function agent(...args){return JSON.parse((await execFile(process.execPath,[config.client,...args],{timeout:20000})).stdout);}
+(async()=>{try{
+ const {targetInfos}=await cdp('Target.getTargets'),tab=await attach(targetInfos.find(t=>t.type==='page').targetId);
+ await cdp('Page.addScriptToEvaluateOnNewDocument',{source:"window.testErrors=[];window.testViolations=[];window.addEventListener('error',e=>testErrors.push(e.message));window.addEventListener('unhandledrejection',e=>testErrors.push(String(e.reason)));window.addEventListener('securitypolicyviolation',e=>testViolations.push(e.violatedDirective));"},tab.sessionId);
+ // A slow discussion request must not delay the first page URL or overwrite
+ // a later navigation when it eventually completes.
+ await cdp('Page.addScriptToEvaluateOnNewDocument',{source:'{const original=window.fetch;let first=true;window.fetch=async(...args)=>{if(first&&String(args[0]).includes('+JSON.stringify('/pages/'+config.intro+'/comments')+')){first=false;await new Promise(resolve=>window.releaseInitialComments=resolve);}return original(...args);};}'},tab.sessionId);
+ const click=selector=>evaluate(tab,'document.querySelector('+JSON.stringify(selector)+').click()');
+ const set=(selector,value)=>evaluate(tab,'document.querySelector('+JSON.stringify(selector)+').value='+JSON.stringify(value));
+ const showing=id=>until(()=>evaluate(tab,'new URLSearchParams(location.search).get("page")==='+JSON.stringify(id)+' && !!document.querySelector("#wiki-page-navigation a")'),'page navigation '+id);
+ await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:1040,deviceScaleFactor:1,mobile:false},tab.sessionId);
+ await cdp('Page.navigate',{url:config.url},tab.sessionId);await showing(config.intro);
+ // Pause a real manifest request to observe loading, repeated taps and failures.
+ await evaluate(tab,'{const original=window.fetch;window.fetch=async(...args)=>{const url=new URL(args[0],location.href);if(url.pathname.endsWith("/pages")&&url.searchParams.get("parent")===""){window.refreshRequests++;if(window.nextRefresh){const pending=window.nextRefresh;window.nextRefresh=null;await new Promise(resolve=>window.releaseRefresh=resolve);if(pending.fail)return new Response(JSON.stringify({error:"Refresh temporarily unavailable"}),{status:503});}}return original(...args);};}');
+ async function refreshPages(activate,{reduced=false,fail=false}={}){
+  const before=await evaluate(tab,'({url:location.href,content:document.getElementById("wiki-content").innerHTML,tree:document.getElementById("wiki-tree").innerHTML,width:document.getElementById("wiki-refresh").getBoundingClientRect().width})');
+  await evaluate(tab,'window.refreshRequests=0;window.releaseRefresh=null;window.nextRefresh='+JSON.stringify({fail}));
+  await activate('#wiki-refresh');await until(()=>evaluate(tab,'typeof window.releaseRefresh==="function"'),'refresh pending');
+  assert.equal(await evaluate(tab,'document.getElementById("wiki-refresh").textContent'),'Refreshing…');
+  assert.equal(await evaluate(tab,'document.getElementById("wiki-refresh").getAttribute("aria-disabled")'),'true');
+  assert.equal(await evaluate(tab,'document.getElementById("wiki-tree").getAttribute("aria-busy")'),'true');
+  assert.equal(await evaluate(tab,'getComputedStyle(document.querySelector("#wiki-refresh svg")).animationName'),reduced?'none':'wiki-refresh-spin');
+  assert.equal(await evaluate(tab,'document.getElementById("wiki-refresh").getBoundingClientRect().width'),before.width,'loading does not shift the toolbar');
+  assert.ok(await evaluate(tab,'document.getElementById("wiki-new-page").getBoundingClientRect().top===document.getElementById("wiki-refresh").getBoundingClientRect().top'),'page actions stay on the same row');
+  await activate('#wiki-refresh');await activate('#wiki-refresh');assert.equal(await evaluate(tab,'window.refreshRequests'),1,'repeated taps share the pending request');
+  await evaluate(tab,'window.releaseRefresh();true');
+  await until(()=>evaluate(tab,'document.getElementById("wiki-refresh").dataset.state==='+JSON.stringify(fail?'error':'success')),'refresh finished');
+  assert.equal(await evaluate(tab,'document.getElementById("wiki-refresh").hasAttribute("aria-disabled")'),false);
+  assert.equal(await evaluate(tab,'document.getElementById("wiki-tree").hasAttribute("aria-busy")'),false);
+  assert.equal(await evaluate(tab,'getComputedStyle(document.querySelector("#wiki-refresh svg")).animationName'),'none');
+  assert.equal(await evaluate(tab,'location.href'),before.url);assert.equal(await evaluate(tab,'document.getElementById("wiki-content").innerHTML'),before.content,'refresh preserves the article');
+  if(fail){
+   assert.equal(await evaluate(tab,'document.getElementById("wiki-tree").innerHTML'),before.tree,'failed refresh preserves the existing tree');
+   assert.ok(await evaluate(tab,'document.getElementById("wiki-refresh-status").classList.contains("wiki-error") && document.getElementById("wiki-refresh-status").textContent.includes("Try again")'),'retry feedback is inside the drawer');
+  }else{
+   assert.equal(await evaluate(tab,'document.getElementById("wiki-refresh").textContent'),'Updated');
+   assert.equal(await evaluate(tab,'document.getElementById("wiki-refresh-status").textContent'),'Pages refreshed.');
+   assert.ok(await evaluate(tab,'!!document.querySelector("#wiki-tree a[aria-current=page]")'),'refresh preserves the selected page and its ancestors');
+  }
+ }
+ assert.equal(await evaluate(tab,'document.body.dataset.wikiLayout'),'book');
+ assert.equal(await evaluate(tab,'location.hash.slice(1)'),config.key);
+ assert.equal(await evaluate(tab,'getComputedStyle(document.getElementById("wiki-pages-nav")).position'),'sticky');
+ assert.equal(await evaluate(tab,'getComputedStyle(document.body).getPropertyValue("--bg").trim()'),'#f6ead9');
+ assert.ok(await evaluate(tab,'document.getElementById("wiki-reading").getBoundingClientRect().width<850'));
+ assert.ok(await evaluate(tab,'document.getElementById("wiki-toc").textContent.includes("Quick start")'));
+ await click('#wiki-page-navigation .wiki-page-next');await showing(config.recovery);
+ await until(()=>evaluate(tab,'typeof window.releaseInitialComments==="function"'),'pending initial discussion');
+ await evaluate(tab,'window.releaseInitialComments();true');
+ assert.ok(await evaluate(tab,'document.getElementById("wiki-breadcrumbs").textContent.includes("Overview")'));
+ const outlineURL=await evaluate(tab,'[...document.querySelectorAll("#wiki-toc a")].find(a=>a.textContent==="Verification").href');
+ assert.equal(new URL(outlineURL).hash,'#'+config.key);
+ await evaluate(tab,'[...document.querySelectorAll("#wiki-toc a")].find(a=>a.textContent==="Verification").click()');
+ assert.ok(await evaluate(tab,'new URLSearchParams(location.search).has("section")'));assert.equal(await evaluate(tab,'location.hash.slice(1)'),config.key);
+ await evaluate(tab,'history.back()');await showing(config.intro);await evaluate(tab,'history.forward()');await showing(config.recovery);
+ await until(()=>evaluate(tab,'!!document.querySelector("#wiki-pages-nav button[aria-label=\\"Collapse Overview\\"]")'),'current page ancestors expanded');
+ await click('#wiki-pages-nav button[aria-label="Collapse Overview"]');
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-children-'+config.intro+'").hidden'),true);
+ await click('#wiki-pages-nav button[aria-label="Expand Overview"]');
+ await until(()=>evaluate(tab,'document.querySelector("#wiki-tree a[data-page-id=\\"'+config.recovery+'\\"]")?.getAttribute("aria-current")==="page"'),'active nested page');
+ assert.equal(await evaluate(tab,'document.querySelectorAll(".wiki-branch-toggle").length'),1,'only pages with children have an expand control');
+ assert.ok(await evaluate(tab,'[...document.querySelectorAll("#wiki-tree a")].every(a=>a.querySelector("svg"))'),'page rows use icons');
+ const added=await agent('new-page',config.url,'b-agent-update','Added by an agent',config.refreshFile);
+ assert.equal(await evaluate(tab,'!!document.querySelector("#wiki-tree a[data-page-id=\\"'+added.id+'\\"]")'),false);
+ await refreshPages(click);
+ assert.ok(await evaluate(tab,'!!document.querySelector("#wiki-tree a[data-page-id=\\"'+added.id+'\\"]")'),'refresh discovers a page added by an agent');
+ await until(()=>evaluate(tab,'document.getElementById("wiki-refresh").textContent==="Refresh"'),'success feedback returns to refresh');
+ // Search opens without leaving the page, and a revision citation closes it.
+ await evaluate(tab,'document.dispatchEvent(new KeyboardEvent("keydown",{key:"k",ctrlKey:true,bubbles:true}))');
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-search-dialog").open'),true);
+ await set('#wiki-query','failover');await set('#wiki-search-mode','relevance');await click('#wiki-search-form button[type=submit]');
+ await until(()=>evaluate(tab,'document.getElementById("wiki-results").textContent.includes("Ranked by Jev")'),'ranked search');
+ await click('#wiki-results a');await until(()=>evaluate(tab,'!document.getElementById("wiki-search-dialog").open && new URLSearchParams(location.search).has("revision")'),'source revision');
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-open-discussion").hidden'),true,'historical snapshots do not accept new comments');
+ await click('#wiki-tree a[data-page-id="'+config.recovery+'"]');await until(()=>evaluate(tab,'!new URLSearchParams(location.search).has("revision") && !document.getElementById("wiki-open-discussion").hidden'),'current revision');
+ await evaluate(tab,'[...document.querySelectorAll("#wiki-content h2")].find(h=>h.firstChild.textContent==="Recovery").querySelector("button").click()');
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-book-discussion").open'),true);
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-comment-anchor").value'),'Recovery');
+ await set('#wiki-comment-body','Human review: verify fencing first.');await click('#wiki-comment-form button');
+ await until(()=>evaluate(tab,'document.getElementById("wiki-comments").textContent.includes("Human review")'),'human section comment');
+ const thread=(await agent('comments',config.url,config.recovery)).comments[0];
+ await agent('reply',config.url,config.recovery,thread.id,'Agent checked the fencing step.');await agent('resolve',config.url,thread.id,'1');
+ await agent('comment',config.url,config.recovery,'Agent page review completed.');
+ await click('#wiki-refresh-comments');await until(()=>evaluate(tab,'document.getElementById("wiki-comments").textContent.includes("Agent checked")'),'agent reply displayed');
+ assert.ok(await evaluate(tab,'document.querySelector("#wiki-comments article > article.reply")?.textContent.includes("Agent checked")'));
+ await evaluate(tab,'[...document.querySelectorAll("#wiki-comments button")].find(b=>b.textContent==="Reopen").click()');
+ await until(async()=>!(await agent('comments',config.url,config.recovery)).comments[0].resolved,'human reopens agent-resolved thread');
+ // Editing uses the same revision guard; opening/closing search preserves the draft.
+ await click('#wiki-edit');await set('#wiki-markdown',(await agent('read',config.url,config.recovery)).markdown+'\n\n## Review outcome\nChecked by a human and an agent.');
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-outline").hidden'),true);
+ await click('#wiki-book-search');await click('#wiki-search-dialog > .wiki-actions button');
+ assert.ok(await evaluate(tab,'document.getElementById("wiki-markdown").value.includes("Review outcome")'));
+ await click('#wiki-editor button[type=submit]');await until(()=>evaluate(tab,'document.getElementById("wiki-status").textContent==="Page saved."'),'book editor save');
+ assert.equal((await agent('read',config.url,config.recovery)).revision,2);
+ assert.ok(await evaluate(tab,'document.getElementById("wiki-toc").textContent.includes("Review outcome")'));
+ await click('#wiki-book-options summary');await click('#wiki-agent');
+ assert.ok(await evaluate(tab,'document.getElementById("wiki-agent-text").value.includes("node wiki.mjs comment")'));
+ await evaluate(tab,'document.getElementById("wiki-agent-dialog").close()');
+ await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:'dark'}]},tab.sessionId);
+ assert.equal(await evaluate(tab,'getComputedStyle(document.body).getPropertyValue("--bg").trim()'),'#190e19');
+ await cdp('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true},tab.sessionId);
+ await cdp('Emulation.setTouchEmulationEnabled',{enabled:true},tab.sessionId);
+ const tapPoint=async(x,y)=>{await cdp('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]},tab.sessionId);await cdp('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]},tab.sessionId);};
+ const tap=async selector=>{const p=await evaluate(tab,'(()=>{const el=document.querySelector('+JSON.stringify(selector)+');if(el.closest("#wiki-navigation-scroll"))el.scrollIntoView({block:"nearest"});const r=el.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()');await tapPoint(p.x,p.y);};
+ const openDrawer=async()=>{await tap('#wiki-pages-toggle');await until(()=>evaluate(tab,'document.getElementById("wiki-navigation-drawer").open && getComputedStyle(document.getElementById("wiki-navigation-drawer")).transform==="none"'),'drawer open');};
+ const closed=()=>until(()=>evaluate(tab,'!document.getElementById("wiki-navigation-drawer").open'),'drawer closed');
+ const key=async(value,code,modifiers=0)=>{await cdp('Input.dispatchKeyEvent',{type:'keyDown',key:value,code:value,windowsVirtualKeyCode:code,modifiers},tab.sessionId);await cdp('Input.dispatchKeyEvent',{type:'keyUp',key:value,code:value,windowsVirtualKeyCode:code,modifiers},tab.sessionId);};
+ await until(()=>evaluate(tab,'document.getElementById("wiki-pages-nav").parentElement.id==="wiki-navigation-drawer"'),'navigation moves into mobile drawer');
+ assert.ok(await evaluate(tab,'document.documentElement.scrollWidth<=innerWidth'),'mobile page fits');
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-pages-nav").checkVisibility()'),false);
+ const articleTop=await evaluate(tab,'document.getElementById("wiki-reading").getBoundingClientRect().top');
+ await openDrawer();assert.equal(await evaluate(tab,'document.getElementById("wiki-pages-toggle").getAttribute("aria-expanded")'),'true');
+ assert.ok(await evaluate(tab,'document.getElementById("wiki-pages-toggle").querySelector("svg")'),'menu is an icon button');
+ assert.ok(await evaluate(tab,'(()=>{const r=document.getElementById("wiki-navigation-drawer").getBoundingClientRect();return r.x===0&&r.height===innerHeight&&r.width<innerWidth;})()'),'full-height side drawer leaves a backdrop');
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-reading").getBoundingClientRect().top'),articleTop,'opening navigation does not reflow the article');
+ assert.equal(await evaluate(tab,'getComputedStyle(document.body).overflow'),'hidden','background scrolling locked');
+ assert.ok(await evaluate(tab,'document.getElementById("wiki-navigation-scroll").scrollHeight>document.getElementById("wiki-navigation-scroll").clientHeight'),'long navigation scrolls inside the drawer');
+ assert.ok(await evaluate(tab,'document.querySelector("#wiki-tree a[aria-current=page]")===document.activeElement'),'drawer focuses the active page');
+ for(let n=0;n<30;n++){await key('Tab',9);assert.ok(await evaluate(tab,'document.getElementById("wiki-navigation-drawer").contains(document.activeElement)'),'focus stays in the modal drawer');}
+ await refreshPages(tap,{fail:true});await refreshPages(tap);
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-navigation-drawer").open'),true,'refresh keeps the drawer open');
+ assert.equal(await evaluate(tab,'document.activeElement.id'),'wiki-refresh','refresh retains keyboard focus');
+ await key('Escape',27);await closed();assert.equal(await evaluate(tab,'document.activeElement.id'),'wiki-pages-toggle');
+ await openDrawer();await tapPoint(380,400);await closed();assert.equal(await evaluate(tab,'document.activeElement.id'),'wiki-pages-toggle');
+ await openDrawer();await tap('#wiki-pages-close');await closed();
+ await openDrawer();await tap('#wiki-tree a[data-page-id="'+config.intro+'"]');await showing(config.intro);
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-pages-nav").checkVisibility()'),false);
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-pages-toggle").getAttribute("aria-expanded")'),'false');
+ assert.notEqual(await evaluate(tab,'getComputedStyle(document.body).overflow'),'hidden');
+ await openDrawer();await evaluate(tab,'document.dispatchEvent(new KeyboardEvent("keydown",{key:"k",ctrlKey:true,bubbles:true}))');await closed();
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-search-dialog").open'),true);
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-book-search").parentElement.id'),'wiki-header','search stays in the header');
+ assert.ok(await evaluate(tab,'document.documentElement.scrollWidth<=innerWidth'),'mobile search fits');
+ await click('#wiki-search-dialog > .wiki-actions button');
+ await openDrawer();await tap('#wiki-new-page');await closed();assert.equal(await evaluate(tab,'document.activeElement.id'),'wiki-page-title');await evaluate(tab,'window.confirm=()=>true');await click('#wiki-cancel-edit');
+ await openDrawer();await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:1040,deviceScaleFactor:1,mobile:false},tab.sessionId);await closed();
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-pages-nav").parentElement.className'),'wiki-layout');
+ assert.equal(await evaluate(tab,'document.querySelectorAll("#wiki-pages-nav").length'),1);
+ assert.equal(await evaluate(tab,'document.getElementById("wiki-pages-nav").checkVisibility()'),true);
+ assert.notEqual(await evaluate(tab,'getComputedStyle(document.body).overflow'),'hidden');
+ await cdp('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true},tab.sessionId);
+ await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-color-scheme',value:'dark'},{name:'prefers-reduced-motion',value:'reduce'}]},tab.sessionId);
+ await openDrawer();assert.equal(await evaluate(tab,'getComputedStyle(document.getElementById("wiki-navigation-drawer")).animationName'),'none');await refreshPages(tap,{reduced:true});await key('Escape',27);await closed();
+ assert.deepEqual(await evaluate(tab,'testErrors'),[]);assert.deepEqual(await evaluate(tab,'testViolations'),[]);
+ console.log('Book E2E passed: desktop sidebar and touch-driven mobile drawer, refresh loading/success/failure/retry, repeated-tap guard, agent-added page discovery, focus containment/return, Escape/backdrop/close dismissal, independent scrolling, responsive reparenting, reduced motion, active ancestors, page navigation, search citations, agent/human discussion, editing and CSP.');
+}finally{chrome.kill('SIGTERM');await exited;}})().catch(error=>{console.error(error);process.exitCode=1;});
+`;
+  const script=join(h.directory,'browser.cjs');await writeFile(script,'const config='+JSON.stringify(config)+';\n'+harness+'\n'+exercise);
+  const {stdout}=await execute(process.execPath,[script],{timeout:70000,maxBuffer:1024*1024});t.diagnostic(stdout);
+  assert.ok(h.provider.requests.length,'Jev search fixture was exercised');
+});

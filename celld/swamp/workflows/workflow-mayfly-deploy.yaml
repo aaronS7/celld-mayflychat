@@ -1,0 +1,63 @@
+id: c1351c8a-d4de-4dd1-a879-c446bcdf7a29
+name: mayfly-deploy
+description: Build Mayfly and redeploy the consolidated fleet using Mercury settings from the local vault.
+tags: {}
+inputs:
+  type: object
+  properties:
+    checkout:
+      type: string
+      default: /home/exedev/ZeroFS/celld-mayflychat
+      description: Absolute application checkout; shell commands use this as their working directory.
+    fleetDirectory:
+      type: string
+      default: /home/exedev/.local/share/celld-consolidated
+    python:
+      type: string
+      default: /home/exedev/.local/share/celld-backup-tools/venv/bin/python
+      description: Python with boto3 installed.
+    publicOrigin:
+      type: string
+      default: https://mayfly-celld.tail835e0d.ts.net
+    dryRun:
+      type: boolean
+      default: false
+      description: Bundle and verify configuration without publishing a deployment.
+  additionalProperties: false
+concurrency: 1
+jobs:
+  - name: release
+    steps:
+      - name: build
+        description: Generate assets and check TypeScript before obtaining provider credentials.
+        task:
+          type: model_method
+          modelType: command/shell
+          modelName: mayfly-build
+          methodName: execute
+          inputs:
+            run: npm run generate && npm run check
+            workingDir: ${{ inputs.checkout }}
+            timeout: 180000
+      - name: deploy
+        description: Read current vault settings, preserve live bindings, dry-run, publish and verify.
+        dependsOn:
+          - step: build
+            condition:
+              type: succeeded
+        task:
+          type: model_method
+          modelType: command/shell
+          modelName: mayfly-deploy
+          methodName: execute
+          inputs:
+            run: '"$MAYFLY_DEPLOY_PYTHON" celld/swamp/deploy.py'
+            workingDir: ${{ inputs.checkout }}
+            timeout: 480000
+            env:
+              MAYFLY_DEPLOY_PYTHON: ${{ inputs.python }}
+              MAYFLY_FLEET_DIRECTORY: ${{ inputs.fleetDirectory }}
+              MAYFLY_PUBLIC_ORIGIN: ${{ inputs.publicOrigin }}
+              MAYFLY_DRY_RUN: "${{ inputs.dryRun ? '1' : '0' }}"
+              MAYFLY_MERCURY_CONFIG: ${{ vault.get('mayfly-mercury', 'MERCURY_CONFIG') }}
+version: 1

@@ -29,6 +29,10 @@ function renderMessageMarkdown(text){
       html(token){ return placeholder('html', token.text); },
       image(token){ return placeholder('image', decoded(token.text), safeURL(decoded(token.href), false)); },
       checkbox(token){ return token.checked ? '[x] ' : '[ ] '; },
+      code(token){
+        if (typeof mayflyEnhanceCode !== 'function') return base.code.call(this, token);
+        return '<pre><code title="'+esc(token.lang || '')+'">'+esc(token.text)+'</code></pre>';
+      },
       link(token){
         inLink++;
         try { return base.link.call(this, token); } finally { inLink--; }
@@ -69,6 +73,12 @@ function renderMessageMarkdown(text){
       span.removeAttribute('title');
       if (item.kind === 'html') { span.className = 'literal-html'; continue; }
       if (!item.url) continue;
+      if (typeof mayflyMedia === 'function') {
+        const slot=mayflyMedia({name:span.textContent,kind:'image',url:item.url});
+        const link=span.closest('a');
+        if(link){(linkedSlots.get(link)||link).after(slot);linkedSlots.set(link,slot);}else span.replaceWith(slot);
+        continue;
+      }
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'load-image'; button.textContent = 'Load image';
       button.title = 'Load image: ' + span.textContent;
@@ -87,6 +97,8 @@ function renderMessageMarkdown(text){
         img.src = item.url; // The only resource assignment, after this image's consent.
       }, {once:true});
     }
+    if (typeof mayflyEnhanceLinks === 'function') mayflyEnhanceLinks(fragment);
+    if (typeof mayflyEnhanceCode === 'function') mayflyEnhanceCode(fragment);
     return fragment;
   } catch { return fallback(); }
 }

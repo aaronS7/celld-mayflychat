@@ -3,8 +3,16 @@
 ENCRYPTION_ENABLED=0
 JEV_ENABLED=0
 JEV_TAGGING_ENABLED=0
+WIKI_ENABLED=0
+WIKI_BOOK_LAYOUT_ENABLED=0
+JEV_WIKI_SEARCH_ENABLED=0
+AI_SUMMARY_ENABLED=0
+# Mercury uses a Chat Completions base URL (include /v1, omit /chat/completions).
+# MERCURY_BASE_URL=https://api.inceptionlabs.ai/v1
+# MERCURY_API_KEY=your-api-key
+# MERCURY_MODEL=mercury-2.5
 RETENTION_SECONDS=86400
 TRUST_PROXY=0
-# Used when encryption is off and either Jev flag is 1:
+# Used when encryption is off and a Jev feature is enabled:
 # TYPESAFE_API_KEY=your-api-key
 # TYPESAFE_MODEL=jev-latest
