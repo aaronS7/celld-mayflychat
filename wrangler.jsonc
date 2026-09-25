@@ -5,10 +5,17 @@
   "durable_objects": {
     "bindings": [
       { "name": "CHATS", "class_name": "Chat" },
-      { "name": "CREATION", "class_name": "CreationGate" }
+      { "name": "CREATION", "class_name": "CreationGate" },
+      { "name": "WIKIS", "class_name": "Wiki" },
+      { "name": "WIKI_CREATION", "class_name": "WikiCreationGate" }
     ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Chat", "CreationGate"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Chat", "CreationGate"] },
+    { "tag": "v2-wiki", "new_sqlite_classes": ["Wiki", "WikiCreationGate"] }
+  ],
+  "r2_buckets": [{ "binding": "WIKI_FILES", "bucket_name": "mayfly-wiki-files" }],
+  "triggers": { "crons": ["0 */12 * * *"] },
   "vars": {
     // Set to "1" only behind a trusted proxy that appends/replaces client IPs.
     "TRUST_PROXY": "0",
@@ -16,6 +23,11 @@
     "ENCRYPTION_ENABLED": "0",
     "JEV_ENABLED": "0",
     "JEV_TAGGING_ENABLED": "0",
+    "WIKI_ENABLED": "0",
+    "WIKI_BOOK_LAYOUT_ENABLED": "0",
+    "JEV_WIKI_SEARCH_ENABLED": "0",
+    "AI_SUMMARY_ENABLED": "0",
+    "MERCURY_MODEL": "mercury-2.5",
     "RETENTION_SECONDS": "86400"
   }
 }

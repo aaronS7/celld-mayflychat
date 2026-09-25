@@ -1,0 +1,7 @@
+id: 1cc5a92c-145b-48ae-83cc-bc73282d31d3
+name: mayfly-mercury
+type: local_encryption
+config:
+  auto_generate: true
+  base_dir: /home/exedev/ZeroFS/celld-mayflychat/celld/swamp
+createdAt: '2026-09-19T11:02:06.157Z'

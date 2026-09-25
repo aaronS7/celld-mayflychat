@@ -1,0 +1,36 @@
+.mayfly-media{display:block;max-width:100%;margin:.65rem 0;padding:.75rem;border:1px solid var(--rule);border-radius:6px;background:var(--soft);overflow-wrap:anywhere}
+.media-name{display:block;font-size:.9rem;margin-bottom:.45rem}
+.media-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}
+.media-actions button,.media-actions a,.media-copy>summary{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:.35rem .7rem;border:1px solid var(--rule);border-radius:4px;background:var(--bg);color:inherit;font:inherit;font-size:.85rem;text-decoration:none;cursor:pointer}
+.media-actions [hidden]{display:none}
+.media-actions button:hover,.media-actions a:hover,.media-copy>summary:hover{border-color:var(--accent)}
+.media-actions button:focus-visible,.media-actions a:focus-visible,.media-copy>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.media-actions button:disabled{opacity:.65;cursor:wait}
+.media-preview{display:block}
+.media-preview img,.media-preview video{display:block;max-width:100%;max-height:32rem;margin-top:.6rem;object-fit:contain;border-radius:4px}
+.media-preview video{width:100%;background:#111}
+.media-preview video:fullscreen{width:100%;height:100%;max-width:none;max-height:none;margin:0;border-radius:0}
+.media-status{display:block;color:var(--muted);font-size:.8rem;line-height:1.5;margin-top:.4rem}
+.media-status:empty{display:none}
+.media-copy{position:relative;flex:none}
+.media-copy>summary{list-style:none;gap:.5rem}
+.media-copy>summary::-webkit-details-marker{display:none}
+.media-copy>summary::after{content:'';width:.35rem;height:.35rem;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);margin-top:-.2rem}
+.media-copy[open]>summary::after{transform:rotate(225deg);margin-top:.2rem}
+.media-copy-options{position:absolute;inset-block-start:calc(100% + .3rem);inset-inline-start:0;z-index:5;display:flex;flex-direction:column;gap:.3rem;min-width:10rem;max-width:calc(100vw - 3rem);padding:.4rem;border:1px solid var(--rule);border-radius:5px;background:var(--bg);box-shadow:0 5px 16px #0002}
+.media-copy:not([open])>.media-copy-options{display:none}
+.media-copy-options button{justify-content:flex-start;white-space:nowrap}
+.mayfly-text{display:block;min-width:0;max-width:100%;margin:.6rem 0;border:1px solid var(--rule);border-radius:4px;background:var(--bg)}
+.text-copy-status{padding:0 .6rem .4rem}
+.mayfly-text .text-actions{padding:.4rem .5rem;border-bottom:1px solid var(--rule);background:var(--soft)}
+.text-coverage{flex:1 1 12rem;font-size:.78rem;color:var(--muted)}
+.mayfly-text .text-source{box-sizing:border-box;margin:0;border:0;border-radius:0;padding:.75rem;max-width:100%;max-height:34rem;max-height:min(65vh,34rem);overflow:auto;white-space:pre;tab-size:2;background:var(--bg);color:var(--fg);font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;overscroll-behavior:contain}
+.mayfly-text .text-source[hidden]{display:none}
+.mayfly-text .text-source code{font:inherit;white-space:pre;background:none;border:0;padding:0;color:inherit;overflow-wrap:normal;word-break:normal}
+.mayfly-text .text-source:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.mayfly-text .wiki-code-keyword{color:var(--accent);font-weight:650}
+.mayfly-text .wiki-code-string{color:light-dark(#496827,#a9ce83)}
+.mayfly-text .wiki-code-property{color:light-dark(#225f8c,#88bfe6)}
+.mayfly-text .wiki-code-number{color:light-dark(#855276,#d8a0c7)}
+.mayfly-text .wiki-code-comment{color:var(--muted);font-style:italic}
+@media(max-width:600px){.mayfly-text .text-coverage{flex-basis:100%}}

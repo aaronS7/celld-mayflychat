@@ -55,7 +55,7 @@ test("retention requires explicit decimal seconds and preserves millisecond prec
 
 test("fleet deploy keeps TypeSafe credentials in private bindings and removes them when unused", async t => {
   const directory = await mkdtemp(join(tmpdir(), "mayfly-deployment-settings-"));
-  const names = ["ENCRYPTION_ENABLED", "JEV_ENABLED", "JEV_TAGGING_ENABLED", "TYPESAFE_API_KEY", "TYPESAFE_MODEL"];
+  const names = ["ENCRYPTION_ENABLED", "JEV_ENABLED", "JEV_TAGGING_ENABLED", "WIKI_ENABLED", "JEV_WIKI_SEARCH_ENABLED", "WIKI_BOOK_LAYOUT_ENABLED", "TYPESAFE_API_KEY", "TYPESAFE_MODEL", "AI_SUMMARY_ENABLED", "MERCURY_BASE_URL", "MERCURY_API_KEY", "MERCURY_MODEL"];
   const before = Object.fromEntries(names.map(name => [name, process.env[name]]));
   t.after(async () => {
     for (const name of names) {
@@ -93,5 +93,34 @@ test("fleet deploy keeps TypeSafe credentials in private bindings and removes th
   assert.ok(!("TYPESAFE_API_KEY" in deployed.vars));
   await fleet.deploy({ ENCRYPTION_ENABLED: "0", JEV_TAGGING_ENABLED: "0" });
   assert.ok(!("TYPESAFE_API_KEY" in deployed.vars));
+  process.env.WIKI_BOOK_LAYOUT_ENABLED = '1';
+  process.env.WIKI_ENABLED = '1';
+  process.env.JEV_WIKI_SEARCH_ENABLED = '1';
+  await fleet.deploy();
+  assert.equal(deployed.vars.TYPESAFE_API_KEY, key, 'Wiki ranking alone loads the key');
+  assert.equal(deployed.vars.WIKI_BOOK_LAYOUT_ENABLED, '1');
+  delete process.env.WIKI_BOOK_LAYOUT_ENABLED;
+  delete process.env.WIKI_ENABLED;
+  delete process.env.JEV_WIKI_SEARCH_ENABLED;
+  await fleet.deploy();
+  assert.equal(deployed.vars.WIKI_ENABLED, '1');
+  assert.equal(deployed.vars.WIKI_BOOK_LAYOUT_ENABLED, '1');
+  await assert.rejects(fleet.deploy({ WIKI_BOOK_LAYOUT_ENABLED: 'true' }), /WIKI_BOOK_LAYOUT_ENABLED/);
+  assert.equal(deployed.vars.JEV_WIKI_SEARCH_ENABLED, '1');
+  await fleet.deploy({ WIKI_ENABLED: '0' });
+  assert.ok(!('TYPESAFE_API_KEY' in deployed.vars), 'Disabled wikis do not retain an unused provider key');
+  await assert.rejects(fleet.deploy({ WIKI_ENABLED: 'true' }), /WIKI_ENABLED/);
   await assert.rejects(fleet.deploy({ JEV_TAGGING_ENABLED: "true" }), /JEV_TAGGING_ENABLED/);
+  process.env.MERCURY_API_KEY = 'private-mercury-fixture';
+  process.env.MERCURY_BASE_URL = 'https://provider.example/v1';
+  await fleet.deploy({ AI_SUMMARY_ENABLED: '1' });
+  assert.equal(deployed.vars.MERCURY_API_KEY, process.env.MERCURY_API_KEY);
+  assert.equal(deployed.vars.MERCURY_BASE_URL, process.env.MERCURY_BASE_URL);
+  assert.equal(deployed.vars.MERCURY_MODEL, 'mercury-2.5');
+  assert.ok(!(await readFile(join(directory,'fleet.json'),'utf8')).includes(process.env.MERCURY_API_KEY));
+  assert.equal(fleet.redact(process.env.MERCURY_API_KEY), '[REDACTED]');
+  await fleet.deploy({ ENCRYPTION_ENABLED:'1' });
+  assert.ok(!('MERCURY_API_KEY' in deployed.vars));
+  await fleet.deploy({ ENCRYPTION_ENABLED:'0',AI_SUMMARY_ENABLED:'0' });
+  assert.ok(!('MERCURY_API_KEY' in deployed.vars));
 });
