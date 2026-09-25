@@ -60,6 +60,10 @@ function wikiMarkdown(source, context) {
       else if(external)span.replaceWith(mayflyMedia({name:span.textContent,kind:'image',url:external}));
     }
   }
+  let diagramCount=0;
+  for(const code of fragment.querySelectorAll('pre > code')) {
+    if(code.getAttribute('title')?.trim().toLowerCase()==='mermaid')code.parentElement.replaceWith(wikiMermaidBlock(code.textContent,++diagramCount));
+  }
   mayflyEnhanceCode(fragment);
   return fragment;
 }

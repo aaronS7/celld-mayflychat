@@ -108,6 +108,14 @@ export function publicPage(request: Request, path: string, config: Settings, wik
     response.headers.set("Cache-Control", "public, max-age=86400");
     return response;
   }
+  if (path === '/static/mermaid-frame') {
+    const response=render('mermaid-frame');
+    const nonce=/script-src 'nonce-([^']+)'/.exec(response.headers.get('Content-Security-Policy') || '')?.[1];
+    if (!nonce) throw new Error('Diagram renderer nonce is missing');
+    response.headers.set('Content-Security-Policy', `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'`);
+    return response;
+  }
+  if (path === '/static/mermaid.js') return new Response(staticFiles['static/mermaid.js'], { headers: { 'Content-Type': 'text/javascript; charset=utf-8' } });
   if (path.startsWith("/static/") && Object.hasOwn(staticFiles, path.slice(1))) return plain(staticFiles[path.slice(1)]);
   if (path === "/llms.txt" || /^\/docs\/[^/]+$/.test(path)) {
     const file = path === "/llms.txt" ? "docs/llms.txt" : path.slice(1);

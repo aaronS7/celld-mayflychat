@@ -1,0 +1,9 @@
+.wiki-mermaid{margin:1rem 0;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.wiki-mermaid-picture{overflow:auto;background:#fff;text-align:center}
+.wiki-mermaid-picture img{display:block;max-width:100%;height:auto;margin:auto}
+.wiki-mermaid>p{margin:.6rem .8rem}
+.wiki-mermaid>p:empty{display:none}
+.wiki-mermaid details{border-top:1px solid var(--rule);padding:.35rem .8rem}
+.wiki-mermaid summary{cursor:pointer}
+.wiki-mermaid pre{max-height:24rem;overflow:auto;white-space:pre;tab-size:2}
+.wiki-mermaid-frame{position:fixed;left:-10000px;top:0;width:1000px;height:1000px;visibility:hidden;pointer-events:none}

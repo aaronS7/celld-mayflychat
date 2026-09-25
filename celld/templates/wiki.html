@@ -5,6 +5,7 @@
 @media(max-width:1100px){.wiki-layout{grid-template-columns:13rem minmax(0,1fr)}.wiki-discussion{grid-column:2;border-left:0;border-top:1px solid var(--rule);padding:1rem 0}}
 @media(max-width:650px){.wiki-layout{display:block}.wiki-nav{border:0;border-bottom:1px solid var(--rule);padding:0 0 1rem;margin-bottom:1rem;max-height:20rem;overflow:auto}.wiki-fields{display:block}.wiki-search{flex-wrap:wrap}.wiki-search input{flex-basis:100%}.wiki-discussion{margin-top:1rem}.wiki-shell{padding:.75rem}}
 {{browser "wiki-book.css"}}
+{{browser "wiki-mermaid.css"}}
 </style></head>
 <body data-wiki-id="{{.WikiID}}" data-wiki-layout="{{.WikiLayout}}"><main class="shell wiki-shell">
 <header id="wiki-header"><a class="brand" href="/">Mayfly <span>Wiki</span></a><div class="wiki-actions"><a href="/docs/wiki.md">Wiki guide</a><a href="/wiki">New wiki</a></div></header>
@@ -42,7 +43,8 @@
 <iframe name="wiki-export-frame" title="Wiki export download" hidden></iframe>
 {{template "footer"}}
 </main><script nonce="{{.CSPNonce}}">{{.MarkedJS}}</script><script nonce="{{.CSPNonce}}">{{.PurifyJS}}</script>
-<script nonce="{{.CSPNonce}}">{{browser "wiki-markdown.js"}}
+<script nonce="{{.CSPNonce}}">{{browser "wiki-mermaid.js"}}
+{{browser "wiki-markdown.js"}}
 {{browser "spaces.js"}}
 {{browser "spaces-ui.js"}}
 {{browser "wiki-book.js"}}
