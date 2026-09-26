@@ -104,7 +104,9 @@ commands. Page-tree branches load on demand in both layouts. **New page** opens
 a Markdown editor with preview, title, path, parent page, aliases and tags.
 
 Pages support Markdown tables, lists, links and basic code highlighting. Use
-**Attach a file** in the editor for images, videos or other files up to 5 MiB,
+fenced `mermaid` blocks for diagrams in saved pages or the editor preview; the
+source stays available below each diagram. Invalid diagrams show their source.
+Use **Attach a file** in the editor for images, videos or other files up to 5 MiB,
 then save the page. Each attachment has **Download**, preserving its filename.
 Use it to save the original file before moving it into a folder or attaching it
 to a GitHub pull request, including videos, PDFs and archives.

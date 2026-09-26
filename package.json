@@ -20,7 +20,7 @@
     "test:spaces": "node --test --test-concurrency=1 celld/spaces.test.mjs",
     "test:spaces:e2e": "node --test celld/spaces-e2e.test.mjs",
     "test:wiki": "node --test --test-concurrency=1 celld/wiki-unit.test.mjs celld/text-preview.test.mjs celld/wiki-book.test.mjs celld/wiki.test.mjs celld/wiki-search-eval.test.mjs celld/wiki-export-unit.test.mjs celld/wiki-export.test.mjs",
-    "test:wiki:e2e": "node --test --test-concurrency=1 celld/wiki-e2e.test.mjs celld/wiki-book-e2e.test.mjs celld/media-e2e.test.mjs celld/text-preview-e2e.test.mjs celld/wiki-export-e2e.test.mjs",
+    "test:wiki:e2e": "node --test --test-concurrency=1 celld/wiki-e2e.test.mjs celld/wiki-book-e2e.test.mjs celld/wiki-mermaid-e2e.test.mjs celld/media-e2e.test.mjs celld/text-preview-e2e.test.mjs celld/wiki-export-e2e.test.mjs",
     "test:wiki:export": "node --test --test-concurrency=1 celld/wiki-export-unit.test.mjs celld/wiki-export.test.mjs celld/wiki-export-e2e.test.mjs",
     "test:media:e2e": "node --test celld/media-e2e.test.mjs celld/text-preview-e2e.test.mjs",
     "test:text-preview": "node --test celld/text-preview.test.mjs",
@@ -49,6 +49,8 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260917.1",
+    "esbuild": "0.28.2",
+    "mermaid": "11.17.2",
     "typescript": "7.0.2"
   }
 }

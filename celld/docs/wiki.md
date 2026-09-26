@@ -103,6 +103,19 @@ Markdown supports tables, lists, links and fenced code, with basic lexical
 highlighting for common programming and configuration formats. Fenced blocks
 show up to 50 lines initially, with **Expand**, **Show first 50 lines** and
 **Minimize** / **Show preview** controls, just like text attachments.
+Use a `mermaid` fence to render a diagram in saved pages and editor previews:
+
+````markdown
+```mermaid
+flowchart LR
+  Request --> Review --> Release
+```
+````
+
+Diagram source remains available under **Diagram source**. Invalid or oversized
+diagrams show their source with an error message. Up to ten diagrams per page
+render, with an 8 KiB source limit each. Rendering runs locally in the browser;
+the generated SVG is displayed as an image and is never inserted as page markup.
 Raw HTML is displayed as text. Stable internal links use `[Title](page:PAGE_ID)`.
 Use **Attach a file** in the editor, then save the page. Each attachment is
 limited to 5 MiB. Images use `![Description](attachment:ATTACHMENT_ID)`; videos
