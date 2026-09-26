@@ -61,7 +61,10 @@ input.url{width:100%;padding:.4rem;border:1px solid var(--rule);border-radius:4p
 .pick-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #copy-status:empty,#name-status:empty,#status:empty{display:none}
 textarea{width:100%;font:inherit;padding:.5rem;border-radius:4px;border:1px solid var(--rule);background:var(--bg);color:inherit;min-height:4rem;resize:vertical}
-#compose{display:flex;flex-direction:column;gap:.5rem;position:sticky;bottom:0;padding:.75rem 0;background:var(--bg)}
+#compose{display:flex;flex-direction:column;gap:.5rem;position:sticky;bottom:0;z-index:4;padding:.75rem 0;background:var(--bg)}
+#scroll-controls{position:absolute;right:0;bottom:calc(100% + .5rem);display:flex;flex-direction:column;align-items:flex-end;gap:.35rem;pointer-events:none}
+#scroll-controls button{pointer-events:auto;min-height:2.75rem;padding:.4rem .8rem;border:1px solid var(--accent);border-radius:999px;background:var(--bg);color:var(--accent);font-size:.85rem;font-weight:650;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+#scroll-controls button:hover{background:var(--soft)}
 #poster{display:inline-flex;align-items:center;gap:.3rem;flex-wrap:wrap}
 #poster b{overflow-wrap:anywhere}
 #name{font:inherit;padding:.2rem .4rem;border:1px solid var(--rule);border-radius:4px;background:var(--bg);color:inherit;width:12rem;max-width:100%}
