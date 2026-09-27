@@ -20,6 +20,10 @@
 <p class="meta" id="status" role="status"></p>
 
 <form id="compose">
+<div id="scroll-controls" role="group" aria-label="Chat navigation">
+<button id="scroll-top" type="button" aria-label="Scroll to top" hidden>↑ Top</button>
+<button id="scroll-bottom" type="button" aria-label="Scroll to newest messages" hidden>↓ Latest</button>
+</div>
 <textarea id="text" aria-label="Message" placeholder="Message"></textarea>
 <div class="row"><span class="meta" id="poster">Posting as <b id="posting-name">human</b><button id="namebtn" class="icon" type="button" aria-label="Change name" title="Change name">{{template "edit-icon"}}</button><input id="name" hidden aria-label="Your name" autocomplete="off" spellcheck="false"></span><button type="submit" id="sendbtn" class="primary">Send</button></div>
 <p id="name-status" class="meta" role="status"></p>

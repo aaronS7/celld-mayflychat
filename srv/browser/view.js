@@ -24,6 +24,7 @@ async function init({startPolling = poll, onGone = onChannelGone} = {}){
   } catch(e){ document.getElementById('nokey').hidden = false; document.getElementById('nokey').textContent = 'Could not use this key: ' + e.message; return; }
   if (KS.id !== CID){ document.getElementById('nokey').hidden = false; document.getElementById('nokey').textContent = 'This key does not belong to this channel (pasted wrong?).'; return; }
   document.getElementById('main').hidden = false;
+  updateScrollControls();
   document.getElementById('editbtn').hidden = false;
   document.getElementById('delbtn').hidden = false;
   titleEl.contentEditable = 'plaintext-only';
@@ -232,6 +233,33 @@ const conversation = createConversation();
 const {messages: msgs, reacts, used} = conversation;
 const rows = Object.create(null); // seq -> row element
 let prevFrom = null; // sender of the previous row, for grouping
+// The composer sticks to the viewport edge; its buttons sit just above it.
+// Recompute after delivery and size changes as well as manual scrolling.
+const scrollTopButton = document.getElementById('scroll-top');
+const scrollBottomButton = document.getElementById('scroll-bottom');
+function updateScrollControls(){
+  const root = document.scrollingElement || document.documentElement;
+  if (!root || !scrollTopButton || !scrollBottomButton) return;
+  const position = Math.max(0, window.scrollY);
+  const remaining = root.scrollHeight - position - window.innerHeight;
+  const ready = !document.getElementById('main').hidden;
+  scrollTopButton.hidden = !ready || position < window.innerHeight;
+  scrollBottomButton.hidden = !ready || remaining <= 24;
+}
+function jumpToScrollEdge(top){
+  const root = document.scrollingElement || document.documentElement;
+  const behavior = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth';
+  window.scrollTo({top: top ? 0 : root.scrollHeight, behavior});
+}
+scrollTopButton?.addEventListener('click', () => jumpToScrollEdge(true));
+scrollBottomButton?.addEventListener('click', () => jumpToScrollEdge(false));
+window.addEventListener('scroll', updateScrollControls, {passive:true});
+window.addEventListener('resize', updateScrollControls);
+if (typeof ResizeObserver !== 'undefined') {
+  const scrollResizeObserver = new ResizeObserver(updateScrollControls);
+  scrollResizeObserver.observe(log);
+  scrollResizeObserver.observe(document.getElementById('compose'));
+}
 // One hue per name, assigned in order of first appearance.
 const hues = [210, 30, 280, 160, 350, 60, 120, 320, 190, 90];
 const colors = Object.create(null);
@@ -257,6 +285,7 @@ function beginPresentation(){
     finish(visible){
       for (const id of dirty) renderReacts(id);
       if (visible && atBottom) window.scrollTo(0, document.body.scrollHeight);
+      updateScrollControls();
     }
   };
 }

@@ -1,0 +1,8 @@
+.wiki-html{display:block;min-width:0;max-width:100%;margin:.7rem 0;border:1px solid var(--rule);border-radius:6px;background:var(--soft);overflow:hidden}
+.wiki-html-actions{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;padding:.5rem .65rem}
+.wiki-html-actions button{min-height:40px;padding:.35rem .7rem;font-size:.85rem}
+.wiki-html-viewport{padding:0 .65rem .65rem}
+.wiki-html-frame{display:block;width:100%;height:min(28rem,55vh);border:1px solid var(--rule);border-radius:4px;background:#fff}
+.wiki-html details{padding:0 .65rem .65rem}
+.wiki-html summary{cursor:pointer;font-size:.85rem}
+.wiki-html pre{max-height:24rem;overflow:auto;margin:.5rem 0 0;padding:.6rem;background:var(--bg);white-space:pre;font:13px/1.5 ui-monospace,monospace}

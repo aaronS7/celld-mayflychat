@@ -116,7 +116,13 @@ Diagram source remains available under **Diagram source**. Invalid or oversized
 diagrams show their source with an error message. Up to ten diagrams per page
 render, with an 8 KiB source limit each. Rendering runs locally in the browser;
 the generated SVG is displayed as an image and is never inserted as page markup.
-Raw HTML is displayed as text. Stable internal links use `[Title](page:PAGE_ID)`.
+Raw HTML stays as text. To render HTML intentionally, use an `html` or `htm`
+code fence and select **Preview HTML** in the saved page or editor preview.
+The source stays available under **HTML source**. The preview is limited to
+256 KiB, permits inline styles and embedded PNG/JPEG/GIF/WebP data images,
+and blocks scripts, external resources, links, forms and nested frames. It
+runs in an isolated iframe and loads only after a click. **Hide preview**
+removes the iframe. Stable internal links use `[Title](page:PAGE_ID)`.
 Use **Attach a file** in the editor, then save the page. Each attachment is
 limited to 5 MiB. Images use `![Description](attachment:ATTACHMENT_ID)`; videos
 and other files use `[Filename](attachment:ATTACHMENT_ID)`. Agents receive the
@@ -152,7 +158,7 @@ downloads always retain the original bytes. Larger or invalid JSON is shown
 as source text. Highlighting work is bounded; the rest stays readable as plain
 text. UTF-8 text is supported; binary or other encodings retain **Download**.
 
-Text previews and fenced code blocks have a **Copy** menu. **Copy contents**
+Text previews and ordinary fenced code blocks have a **Copy** menu. **Copy contents**
 copies the complete source text. **Copy as Markdown** includes the filename
 for attachments and a language-tagged code block, suitable for a PR comment.
 **Copy formatted text** supplies code formatting with a plain-text fallback;
@@ -168,7 +174,9 @@ SVG previews use image data URLs with opaque origins.
 Recognized text and image files load automatically; videos and remaining file
 types load on demand. Leaving the page stops video and releases its URLs.
 Non-image/video attachments are served as `application/octet-stream`; HTML and
-XML source can preview as inert text. SVG downloads retain attachment disposition.
+XML source can preview as inert text. Uploaded `.html` and `.htm` files also
+offer **Preview HTML** after their source loads, with the same limits and
+isolation as fenced HTML. SVG downloads retain attachment disposition.
 External HTTP(S) images and direct video links require a click before loading.
 External files retain **Download / open**, without the uploaded-file copy/share
 actions. These links may open a browser viewer instead of saving;

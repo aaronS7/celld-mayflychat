@@ -106,6 +106,10 @@ a Markdown editor with preview, title, path, parent page, aliases and tags.
 Pages support Markdown tables, lists, links and basic code highlighting. Use
 fenced `mermaid` blocks for diagrams in saved pages or the editor preview; the
 source stays available below each diagram. Invalid diagrams show their source.
+Use a fenced `html` block and select **Preview HTML** to render a static HTML
+snippet. The source remains available. Scripts, external resources and links
+are blocked in the isolated preview. Uploaded `.html` files offer the same
+optional preview alongside their source text, up to 256 KiB.
 Use **Attach a file** in the editor for images, videos or other files up to 5 MiB,
 then save the page. Each attachment has **Download**, preserving its filename.
 Use it to save the original file before moving it into a folder or attaching it
@@ -141,7 +145,8 @@ large numbers exactly. Downloads keep the original bytes. Larger or malformed
 JSON stays readable as source. Very long lines initially show up to 16,384 characters,
 and highlighting is bounded so large outputs remain responsive. Text previews
 support UTF-8; binary files and other encodings can still be downloaded.
-HTML and XML preview as source text. SVGs render as images and download as files.
+HTML and XML preview as source text. HTML files can also be rendered on request;
+SVGs render as images and download as files.
 External images and video links load only after a click. Their **Download / open**
 action may open the host's viewer; use the browser's Save command in that case.
 External files do not offer the uploaded-file copy/share actions.

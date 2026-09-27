@@ -30,7 +30,7 @@ for (const file of ["site.html", "view.css.html"]) {
   for (const match of files[`templates/${file}`].matchAll(/{{define "([^"]+)"}}([\s\S]*?){{end}}/g)) partials[match[1]] = match[2];
 }
 const templates = {};
-for (const name of ["index", "view", "gone", "doc", "wiki", "mermaid-frame"]) {
+for (const name of ["index", "view", "gone", "doc", "wiki", "mermaid-frame", "html-preview-frame"]) {
   let source = files[`templates/${name}.html`].replace(/{{template "([^"]+)"(?: \.)?}}/g, (_, key) => {
     if (!(key in partials)) throw new Error(`Unknown partial: ${key}`);
     return partials[key];

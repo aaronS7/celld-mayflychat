@@ -75,7 +75,9 @@ function mayflyMedia({name, kind, url, resolve, language, autoImage = false, aut
         const source=new TextDecoder('utf-8',{fatal:true}).decode(await value.blob.arrayBuffer());
         if(!card.isConnected)return;
         if(source.includes('\0'))throw new Error('Not text');
-        preview.replaceChildren(mayflyTextPreview(source,{name,language:language||mayflyTextLanguage(name,value.type)||'text',format:true}));
+        const textLanguage=language||mayflyTextLanguage(name,value.type)||'text';
+        preview.replaceChildren(mayflyTextPreview(source,{name,language:textLanguage,format:true}));
+        if(textLanguage==='html' && typeof wikiHtmlBlock==='function')preview.append(wikiHtmlBlock(source,{showSource:false,name}));
         load.hidden=true;status.textContent='';
       } catch {status.textContent='Text preview unavailable. The file may be binary or use another encoding. You can still download it.';}
       finally {load.disabled=false;}
