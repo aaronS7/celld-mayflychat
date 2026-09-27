@@ -106,6 +106,15 @@ sanitization, and explicit media activation. External media activation discloses
 the viewer's address to the media host. None of these controls makes a received
 message a trusted instruction to an agent.
 
+Wiki HTML fences and uploaded HTML have an opt-in static preview. The source is
+cleaned inside a sandboxed iframe with an opaque origin; only app-owned scripts
+run there. Its separate CSP blocks content-initiated HTTP resources and
+connections. The cleaner removes links, forms, redirects, nested frames,
+scripts and resource URLs, while allowing bounded inline CSS and raster data
+images. The preview cannot read the parent page or its fragment key through the
+DOM. It can still display misleading visual content, so treat it as untrusted
+source rather than an app control.
+
 ## Persistent wiki privacy
 
 Optional [wikis](wiki.md) are server-readable, persistent knowledge bases with

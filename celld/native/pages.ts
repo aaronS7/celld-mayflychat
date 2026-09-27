@@ -115,6 +115,13 @@ export function publicPage(request: Request, path: string, config: Settings, wik
     response.headers.set('Content-Security-Policy', `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'`);
     return response;
   }
+  if (path === '/static/html-preview-frame') {
+    const response=render('html-preview-frame');
+    const nonce=/script-src 'nonce-([^']+)'/.exec(response.headers.get('Content-Security-Policy') || '')?.[1];
+    if (!nonce) throw new Error('HTML preview nonce is missing');
+    response.headers.set('Content-Security-Policy', `sandbox allow-scripts; default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'`);
+    return response;
+  }
   if (path === '/static/mermaid.js') return new Response(staticFiles['static/mermaid.js'], { headers: { 'Content-Type': 'text/javascript; charset=utf-8' } });
   if (path.startsWith("/static/") && Object.hasOwn(staticFiles, path.slice(1))) return plain(staticFiles[path.slice(1)]);
   if (path === "/llms.txt" || /^\/docs\/[^/]+$/.test(path)) {

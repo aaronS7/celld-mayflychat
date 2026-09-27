@@ -62,7 +62,9 @@ function wikiMarkdown(source, context) {
   }
   let diagramCount=0;
   for(const code of fragment.querySelectorAll('pre > code')) {
-    if(code.getAttribute('title')?.trim().toLowerCase()==='mermaid')code.parentElement.replaceWith(wikiMermaidBlock(code.textContent,++diagramCount));
+    const language=code.getAttribute('title')?.trim().toLowerCase();
+    if(language==='mermaid')code.parentElement.replaceWith(wikiMermaidBlock(code.textContent,++diagramCount));
+    else if(language==='html' || language==='htm')code.parentElement.replaceWith(wikiHtmlBlock(code.textContent));
   }
   mayflyEnhanceCode(fragment);
   return fragment;
