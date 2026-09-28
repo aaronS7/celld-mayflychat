@@ -8,7 +8,8 @@ function wikiBook({api,pageURL,fullURL,navigate,revealParents,report}) {
   const icons={menu:'M4 6h16M4 12h16M4 18h16',close:'m6 6 12 12M6 18 18 6',search:'M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
     book:'M12 5v16M12 5C8 2 4 3 2 4v15c3-1 7-1 10 2 3-3 7-3 10-2V4c-2-1-6-2-10 1Z',file:'M14 2H5v20h14V7Zm0 0v5h5M8 12h8M8 16h6',
     chevron:'m9 5 7 7-7 7',plus:'M12 5v14M5 12h14',refresh:'M20 12a8 8 0 1 1-2.34-5.66L20 9M20 4v5h-5',check:'m5 12 4 4L19 6',
-    chat:'M21 11a9 9 0 0 1-9 9H3l2-5a9 9 0 1 1 16-4ZM8 10h8M8 14h5',options:'M5 6h14M5 12h14M5 18h14M9 3v6M15 9v6M10 15v6'};
+    chat:'M21 11a9 9 0 0 1-9 9H3l2-5a9 9 0 1 1 16-4ZM8 10h8M8 14h5',options:'M5 6h14M5 12h14M5 18h14M9 3v6M15 9v6M10 15v6',
+    sidebarClose:'M3 3h18v18H3zM9 3v18m8-13-4 4 4 4',sidebarOpen:'M3 3h18v18H3zM9 3v18m4-13 4 4-4 4'};
   function icon(name){
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS(svg.namespaceURI,'path');
     svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.setAttribute('focusable','false');svg.classList.add('wiki-icon');path.setAttribute('d',icons[name]);svg.append(path);return svg;
@@ -24,6 +25,18 @@ function wikiBook({api,pageURL,fullURL,navigate,revealParents,report}) {
   const pages=iconButton(action(null,'wiki-pages-toggle',()=>openDrawer()),'menu','Open page navigation');
   pages.setAttribute('aria-controls','wiki-navigation-drawer');pages.setAttribute('aria-expanded','false');pages.setAttribute('aria-haspopup','dialog');pages.hidden=true;
   const closePages=iconButton(action(null,'wiki-pages-close',()=>closeDrawer()),'close','Close page navigation');
+  const sidebarOpen=iconButton(action(null,'wiki-sidebar-open',()=>setSidebarCollapsed(false,true)),'sidebarOpen','Expand sidebar');
+  const sidebarClose=iconButton(action(null,'wiki-sidebar-close',()=>setSidebarCollapsed(true,true)),'sidebarClose','Collapse sidebar');
+  sidebarOpen.setAttribute('aria-controls',nav.id);sidebarOpen.setAttribute('aria-expanded','true');
+  sidebarClose.setAttribute('aria-controls',nav.id);
+  const sidebarKey='mayfly-wiki-sidebar:'+document.body.dataset.wikiId;
+  function setSidebarCollapsed(collapsed,focus=false){
+    document.body.classList.toggle('wiki-sidebar-collapsed',collapsed);
+    sidebarOpen.setAttribute('aria-expanded',String(!collapsed));
+    if(focus)(collapsed?sidebarOpen:sidebarClose).focus({preventScroll:true});
+    try{localStorage.setItem(sidebarKey,collapsed?'collapsed':'expanded');}catch{}
+  }
+  try{if(localStorage.getItem(sidebarKey)==='collapsed')setSidebarCollapsed(true);}catch{}
   function settled(){pages.setAttribute('aria-expanded','false');document.body.classList.remove('wiki-drawer-open');}
   function closeDrawer(restore=true){
     const wasOpen=drawer.open;if(wasOpen)drawer.close();settled();if(wasOpen&&restore&&mobile.matches)pages.focus({preventScroll:true});return wasOpen;
@@ -53,7 +66,7 @@ function wikiBook({api,pageURL,fullURL,navigate,revealParents,report}) {
   const search=action(null,'wiki-book-search',()=>openSearch());search.hidden=true;
   search.append(icon('search'),el('span','Search this wiki'),el('kbd',/Mac|iPhone|iPad/.test(navigator.platform)?'⌘ K':'Ctrl K'));search.setAttribute('aria-label','Search this wiki');
   search.setAttribute('aria-keyshortcuts','Control+K Meta+K');search.setAttribute('aria-haspopup','dialog');
-  header.insertBefore(search,header.lastElementChild);header.prepend(pages);
+  header.insertBefore(search,header.lastElementChild);header.prepend(pages,sidebarOpen);
   const searchDialog=el('dialog',null,'wiki-search-dialog');searchDialog.setAttribute('aria-labelledby','wiki-search-heading');
   const searchHeading=el('h2','Search this wiki','wiki-search-heading'),closeSearch=action('Close',null,()=>searchDialog.close());
   const searchTop=el('div');searchTop.className='wiki-actions';searchTop.append(searchHeading,closeSearch);
@@ -63,7 +76,7 @@ function wikiBook({api,pageURL,fullURL,navigate,revealParents,report}) {
     if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'&&!event.altKey&&!$('wiki-main').hidden && event.target.tagName!=='TEXTAREA'&&!event.target.isContentEditable){event.preventDefault();openSearch();}
   });
   const overview=$('wiki-overview'),options=el('details',null,'wiki-book-options');options.append(summary('Wiki options','options'));
-  const navHead=el('div',null,'wiki-navigation-head'),identity=el('div');identity.append(el('small','KNOWLEDGE BASE'),$('wiki-title'));navHead.append(icon('book'),identity,closePages);
+  const navHead=el('div',null,'wiki-navigation-head'),identity=el('div');identity.append(el('small','KNOWLEDGE BASE'),$('wiki-title'));navHead.append(icon('book'),identity,sidebarClose,closePages);
   const navTools=nav.querySelector('.wiki-actions');navTools.id='wiki-navigation-tools';navTools.querySelector('h2').textContent='Contents';
   iconButton($('wiki-new-page'),'plus','Create a new page');
   const refresh=iconButton($('wiki-refresh'),'refresh','Refresh pages'),refreshLabel=el('span','Refresh');refresh.append(refreshLabel);

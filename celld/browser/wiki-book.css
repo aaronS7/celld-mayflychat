@@ -87,7 +87,15 @@ body[data-wiki-layout=book] #wiki-search-dialog input,body[data-wiki-layout=book
 body[data-wiki-layout=book] #wiki-search-dialog label{display:block;margin:.7rem 0}
 body[data-wiki-layout=book] #wiki-search-dialog label input{width:100%}
 body[data-wiki-layout=book] #wiki-search-dialog::backdrop{background:color-mix(in srgb,var(--fg) 35%,transparent)}
-body[data-wiki-layout=book] #wiki-pages-toggle,body[data-wiki-layout=book] #wiki-pages-close{display:none}
+body[data-wiki-layout=book] #wiki-pages-toggle,body[data-wiki-layout=book] #wiki-pages-close,body[data-wiki-layout=book] #wiki-sidebar-open{display:none}
+@media(min-width:801px){
+  body[data-wiki-layout=book] #wiki-sidebar-close{display:inline-flex}
+  body[data-wiki-layout=book].wiki-sidebar-collapsed #wiki-pages-nav{display:none}
+  body[data-wiki-layout=book].wiki-sidebar-collapsed #wiki-sidebar-open{display:inline-flex}
+}
+@media(min-width:1101px){
+  body[data-wiki-layout=book].wiki-sidebar-collapsed .wiki-layout{grid-template-columns:minmax(0,1fr) 13rem;grid-template-areas:'article outline'}
+}
 body[data-wiki-layout=book].wiki-drawer-open{overflow:hidden}
 body[data-wiki-layout=book] #wiki-navigation-drawer{position:fixed;inset:0 auto 0 0;width:min(22rem,calc(100vw - 3rem));height:100dvh;max-height:100dvh;max-width:none;margin:0;padding:0;border:0;border-right:1px solid var(--rule);background:var(--bg);color:var(--fg);box-shadow:1rem 0 3rem #0003;overflow:hidden;overscroll-behavior:contain}
 body[data-wiki-layout=book] #wiki-navigation-drawer[open]{animation:wiki-drawer-in .22s cubic-bezier(.2,.8,.2,1)}
@@ -101,8 +109,10 @@ body[data-wiki-layout=book] #wiki-navigation-drawer::backdrop{background:#130d16
 @media(min-width:801px) and (max-width:1100px){
   body[data-wiki-layout=book] #wiki-navigation-tools h2{grid-column:1/-1}
   body[data-wiki-layout=book] #wiki-navigation-tools #wiki-new-page{grid-column:2}
+  body[data-wiki-layout=book].wiki-sidebar-collapsed .wiki-layout{grid-template-columns:minmax(0,1fr);grid-template-areas:'outline' 'article'}
 }
 @media(max-width:800px){
+  body[data-wiki-layout=book] #wiki-sidebar-close{display:none}
   body[data-wiki-layout=book] #wiki-header{gap:.6rem;min-height:0;margin-bottom:1rem;flex-wrap:nowrap}
   body[data-wiki-layout=book] #wiki-header>.wiki-actions{display:none}
   body[data-wiki-layout=book] #wiki-book-search{width:auto;min-width:0;flex:1;font-size:.85rem;padding:.6rem .65rem;gap:.5rem}

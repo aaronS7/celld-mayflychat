@@ -15,6 +15,25 @@
   const pageURL=(pageID,rev,section)=>location.origin+root()+'?'+new URLSearchParams({page:pageID,...(rev?{revision:String(rev)}:{}),...(section?{section}:{})})+'#'+key;
   const branches=new WeakMap();
   const book=wikiBook({api,pageURL,fullURL,revealParents,navigate:async pageID=>{if(leaveDraft())await openPage(pageID);},report:error=>status(error.message,true)});
+  if(!book&&wikiID){
+    const nav=$('wiki-pages-nav'),open=element('button','Show pages'),close=element('button','Hide pages');
+    open.type=close.type='button';
+    open.id='wiki-classic-sidebar-open';close.id='wiki-classic-sidebar-close';
+    open.setAttribute('aria-controls',nav.id);close.setAttribute('aria-controls',nav.id);
+    $('wiki-header').insertBefore(open,$('wiki-header').querySelector('.wiki-actions'));
+    nav.querySelector('.wiki-actions').append(close);
+    const storageKey='mayfly-wiki-sidebar:'+wikiID;
+    function setCollapsed(collapsed,focus=false){
+      document.body.classList.toggle('wiki-sidebar-collapsed',collapsed);
+      open.setAttribute('aria-expanded',String(!collapsed));
+      if(focus)(collapsed?open:close).focus({preventScroll:true});
+      try{localStorage.setItem(storageKey,collapsed?'collapsed':'expanded');}catch{}
+    }
+    open.addEventListener('click',()=>setCollapsed(false,true));
+    close.addEventListener('click',()=>setCollapsed(true,true));
+    let saved=false;try{saved=localStorage.getItem(storageKey)==='collapsed';}catch{}
+    setCollapsed(saved);
+  }
   wikiExport({api,book,currentPage:()=>current});
   async function derive(raw) {
     if(raw.length!==32)throw new Error('The complete link needs its 32-byte key after #.');
