@@ -14,7 +14,7 @@ function mayflyLinkedFile(url) {
   } catch {}
   return null;
 }
-function mayflyMedia({name, kind, url, resolve, language, autoImage = false, autoText = false}) {
+function mayflyMedia({name, kind, url, resolve, language, autoImage = false, autoText = false, renderMarkdown}) {
   const el = (tag, text, cls) => { const node=document.createElement(tag);if(text)node.textContent=text;if(cls)node.className=cls;return node; };
   const card=el('span',null,'mayfly-media'), title=el('strong',name || 'Attachment','media-name');
   const actions=el('span',null,'media-actions'), preview=el('span',null,'media-preview'), status=el('span',null,'media-status');
@@ -76,7 +76,7 @@ function mayflyMedia({name, kind, url, resolve, language, autoImage = false, aut
         if(!card.isConnected)return;
         if(source.includes('\0'))throw new Error('Not text');
         const textLanguage=language||mayflyTextLanguage(name,value.type)||'text';
-        preview.replaceChildren(mayflyTextPreview(source,{name,language:textLanguage,format:true}));
+        preview.replaceChildren(mayflyTextPreview(source,{name,language:textLanguage,format:true,renderMarkdown}));
         if(textLanguage==='html' && typeof wikiHtmlBlock==='function')preview.append(wikiHtmlBlock(source,{showSource:false,name}));
         load.hidden=true;status.textContent='';
       } catch {status.textContent='Text preview unavailable. The file may be binary or use another encoding. You can still download it.';}
@@ -85,6 +85,20 @@ function mayflyMedia({name, kind, url, resolve, language, autoImage = false, aut
     load.addEventListener('click',show);
     // Owned wiki files may load automatically; external links stay opt-in.
     if(autoText)void show();
+  }
+  if(url && mayflyTextLanguage(new URL(url,location.href).pathname)==='markdown' && renderMarkdown) {
+    const load=el('button','Preview Markdown','media-load');load.type='button';actions.prepend(load);
+    load.addEventListener('click',async()=>{
+      if(load.disabled)return;
+      load.disabled=true;status.textContent='Loading Markdown preview…';
+      try {
+        const source=await mayflyLoadMarkdownFile(url);if(!card.isConnected)return;
+        const text=mayflyTextPreview(source,{name,language:'markdown',renderMarkdown});
+        preview.replaceChildren(text);text.querySelector('.text-markdown').click();
+        load.hidden=true;status.textContent='';
+      } catch(error){status.textContent=error.message==='size'?'Markdown preview is limited to 256 KiB. You can still download the file.':'Markdown preview unavailable. The file may not be text, or its host may block previews. You can still download or open it.';}
+      finally {load.disabled=false;}
+    });
   }
   if(kind==='image' || kind==='video') {
     const load=el('button',kind==='image'?'Load image':'Load video','media-load');load.type='button';actions.prepend(load);
@@ -121,10 +135,10 @@ function mayflyMedia({name, kind, url, resolve, language, autoImage = false, aut
   }
   return card;
 }
-function mayflyEnhanceLinks(fragment) {
+function mayflyEnhanceLinks(fragment, renderMarkdown) {
   for(const a of fragment.querySelectorAll('a[href]')) {
     if(a.closest('.mayfly-media'))continue;
     const kind=mayflyLinkedFile(a.href);
-    if(kind)a.replaceWith(mayflyMedia({name:a.textContent,kind,url:a.href}));
+    if(kind)a.replaceWith(mayflyMedia({name:a.textContent,kind,url:a.href,renderMarkdown:renderMarkdown && (source=>renderMarkdown(source,a.href))}));
   }
 }

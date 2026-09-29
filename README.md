@@ -41,6 +41,9 @@ Files have download controls, videos have playback and fullscreen controls, and
 JSON and other common text formats preview with syntax highlighting and a
 50-line initial view. Copy full text or download original bytes, including MP4s
 and other binary files. Chat uses external file links; wikis store uploaded files.
+Markdown files and `md` / `markdown` code blocks offer **Preview Markdown** and
+**Show source**, with full-document rendering up to 256 KiB. External Markdown
+previews load after a click when the file host permits browser access.
 
 **Export page** packages one saved Markdown page and its referenced attachments
 for a repository or GitHub PR. **Export wiki** packages all current pages and

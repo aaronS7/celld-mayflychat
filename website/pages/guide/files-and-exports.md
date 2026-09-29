@@ -17,6 +17,7 @@ exports need no additional flag, AI provider or GitHub credentials.
 | Save one uploaded file | **Download** on its wiki attachment card | Original file and filename, including images, MP4s, JSON, PDFs and archives. |
 | Open an externally hosted file | **Download / open** in chat or wiki | The external host handles the file; it may open a viewer instead of saving it. |
 | Paste text into a PR or document | **Copy** on a text preview or code block | Full contents, a Markdown code block, or formatted text. |
+| Read rendered Markdown | **Preview Markdown** on a Markdown file or code block | Headings, lists, tables, links and code, with **Show source** to switch back. |
 | Put one wiki page in a repository | **Export page** beside **Edit** and **History** | A ZIP with saved Markdown, its referenced uploads, metadata and discussion. |
 | Move a whole wiki | **Wiki options → Export wiki** | A ZIP with all current pages, all completed uploads, metadata and discussion. |
 
@@ -34,6 +35,12 @@ at **50 lines**. Choose **Expand**, **Show first 50 lines**, **Minimize**, or
 even when the preview is collapsed. See the [preview and copy details](wiki.md#read-edit-and-discuss)
 for formatting limits and browser support.
 
+Markdown files (`.md` and `.markdown`) and code fences labeled `md` or `markdown`
+have a **Preview Markdown** button in chat and wikis. It renders the full document,
+up to **256 KiB**, including content beyond the initial 50 source lines. **Show
+source** switches back; copy and download preserve the original content.
+Raw HTML stays literal and external images load only after a separate click.
+
 MP4, WebM and Ogg video offer **Load video**, play/pause, seeking, volume and
 **Fullscreen**. Videos do not autoplay. Playback depends on codec support;
 **Download** remains available if playback is unsupported. Uploaded images offer
@@ -43,9 +50,11 @@ they do not provide a universal file clipboard for pasting arbitrary files.
 
 Chat has no upload storage. Its file links point to external hosts. External
 images and videos load only after a click; **Download / open** may open the
-host's viewer, where you can use its Save command. External text links stay
-links rather than automatically loading a preview. Mayfly does not proxy these
-files or send the external host your chat or wiki bearer.
+host's viewer, where you can use its Save command. External Markdown files offer
+**Preview Markdown** after a click when the host permits browser access (CORS).
+The file must be UTF-8 and at most 256 KiB. If the host blocks previews, use
+**Download / open**. Mayfly does not proxy these files or send the external host
+your chat or wiki bearer, cookies or referrer when fetching Markdown.
 
 ## Export a page for a GitHub PR
 
