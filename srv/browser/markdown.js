@@ -1,14 +1,15 @@
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 // A body is the only Markdown boundary. Commands and app UI never enter it.
 // Each call owns its parser, sanitizer hooks, and unforgeable placeholder map.
-function renderMessageMarkdown(text){
+function renderMessageMarkdown(text, {preview = false, baseURL} = {}){
   const fallback = () => { const f = document.createDocumentFragment(); f.appendChild(document.createTextNode(text)); return f; };
   try {
     if (!globalThis.marked || !globalThis.DOMPurify) return fallback();
     const clean = DOMPurify(window);
     if (!clean.isSupported) return fallback();
     const safeURL = (s, anchors = true) => {
-      if (anchors && /^#m[0-9]+$/.test(s)) return s;
+      if (!preview && anchors && /^#m[0-9]+$/.test(s)) return s;
+      if (baseURL) { try { s = new URL(s,baseURL).href; } catch { return null; } }
       if (!/^https?:\/\//i.test(s) || /[\s\u0000-\u001f\u007f\\]/u.test(s)) return null;
       try { const u = new URL(s); return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : null; } catch { return null; }
     };
@@ -25,7 +26,7 @@ function renderMessageMarkdown(text){
     };
     const base = new marked.Renderer();
     let inLink = 0;
-    const md = new marked.Marked({gfm:true, breaks:true, async:false, renderer:{
+    const md = new marked.Marked({gfm:true, breaks:!preview, async:false, renderer:{
       html(token){ return placeholder('html', token.text); },
       image(token){ return placeholder('image', decoded(token.text), safeURL(decoded(token.href), false)); },
       checkbox(token){ return token.checked ? '[x] ' : '[ ] '; },
@@ -43,7 +44,7 @@ function renderMessageMarkdown(text){
         if (token.escaped && !token.tokens) return placeholder('html', token.text);
         const html = base.text.call(this, token);
         // Do not rewrite a composite token twice, HTML, code, labels, or URLs.
-        if (inLink || token.tokens) return html;
+        if (preview || inLink || token.tokens) return html;
         return html.replace(/(^|[^\w&])#(\d+)\b/g, (_, pre, n) => `${pre}<a href="#m${n}">#${n}</a>`);
       }
     }});
@@ -97,8 +98,8 @@ function renderMessageMarkdown(text){
         img.src = item.url; // The only resource assignment, after this image's consent.
       }, {once:true});
     }
-    if (typeof mayflyEnhanceLinks === 'function') mayflyEnhanceLinks(fragment);
-    if (typeof mayflyEnhanceCode === 'function') mayflyEnhanceCode(fragment);
+    if (typeof mayflyEnhanceLinks === 'function') mayflyEnhanceLinks(fragment,(source,url)=>renderMessageMarkdown(source,{preview:true,baseURL:url}));
+    if (typeof mayflyEnhanceCode === 'function') mayflyEnhanceCode(fragment,source=>renderMessageMarkdown(source,{preview:true,baseURL}));
     return fragment;
   } catch { return fallback(); }
 }

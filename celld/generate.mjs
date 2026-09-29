@@ -30,7 +30,7 @@ for (const file of ["site.html", "view.css.html"]) {
   for (const match of files[`templates/${file}`].matchAll(/{{define "([^"]+)"}}([\s\S]*?){{end}}/g)) partials[match[1]] = match[2];
 }
 const templates = {};
-for (const name of ["index", "view", "gone", "doc", "wiki", "mermaid-frame", "html-preview-frame"]) {
+for (const name of ["index", "view", "gone", "doc", "wiki", "mermaid-frame", "html-preview-frame", "markdown-file-frame"]) {
   let source = files[`templates/${name}.html`].replace(/{{template "([^"]+)"(?: \.)?}}/g, (_, key) => {
     if (!(key in partials)) throw new Error(`Unknown partial: ${key}`);
     return partials[key];
@@ -39,7 +39,7 @@ for (const name of ["index", "view", "gone", "doc", "wiki", "mermaid-frame", "ht
   source = source.replace('{{if not .ExpiresAt}} hidden{{end}}', '{{.ExpiresHidden}}');
   if (['index','view','wiki'].includes(name)) source = source.replace('</head>', '<style nonce="{{.CSPNonce}}">'+files['browser/spaces.css']+'</style></head>');
   if (['view','wiki'].includes(name)) {
-    source = source.replace('</head>', '<style nonce="{{.CSPNonce}}">'+files['browser/media.css']+'</style><script nonce="{{.CSPNonce}}">{{browser "text-preview.js"}}\n{{browser "clipboard.js"}}\n{{browser "media.js"}}</script></head>');
+    source = source.replace('</head>', '<style nonce="{{.CSPNonce}}">'+files['browser/media.css']+'</style><script nonce="{{.CSPNonce}}">{{browser "text-preview.js"}}\n{{browser "clipboard.js"}}\n{{browser "markdown-file.js"}}\n{{browser "media.js"}}</script></head>');
     source = source.replace('<body', '<body data-ai-summary="{{.SummaryEnabled}}"');
     source = source.replace('</head>', '<style nonce="{{.CSPNonce}}">'+files['browser/summary.css']+'</style></head>');
     source = source.replace('</body>', '<script nonce="{{.CSPNonce}}">{{browser "summary.js"}}</script></body>');

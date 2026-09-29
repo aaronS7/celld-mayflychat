@@ -82,7 +82,7 @@ export function render(name: keyof typeof templates, values: Record<string, stri
   Object.assign(fields, { CSPNonce: nonce, "Channel.ID": scriptJSON(values.ID || ""), ExpiresAtJSON: scriptJSON(values.ExpiresAt || ""), ExpiresHidden: values.ExpiresAt ? "" : " hidden" });
   if (config) Object.assign(fields, { SettingsJSON: scriptJSON(config), PrivacyText: escapeHTML(privacyText(config)) });
   const body = templates[name].map(part => typeof part === "string" ? part : fields[part.field] ?? "").join("");
-  const media = name === 'view' || name === 'wiki' ? '; media-src http: https: blob:' : '';
+  const media = name === 'view' || name === 'wiki' ? "; media-src http: https: blob:"+(name === 'view' ? "; frame-src 'self'" : '') : '';
   return new Response(body, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": `${csp}${media}; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'` } });
 }
 export function channelPage(request: Request, id: string, activity: number | undefined, retention: number, config: Settings, wikiEnabled = false, summaryEnabled = false): Response {
@@ -120,6 +120,13 @@ export function publicPage(request: Request, path: string, config: Settings, wik
     const nonce=/script-src 'nonce-([^']+)'/.exec(response.headers.get('Content-Security-Policy') || '')?.[1];
     if (!nonce) throw new Error('HTML preview nonce is missing');
     response.headers.set('Content-Security-Policy', `sandbox allow-scripts; default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'`);
+    return response;
+  }
+  if (path === '/static/markdown-file-frame') {
+    const response=render('markdown-file-frame');
+    const nonce=/script-src 'nonce-([^']+)'/.exec(response.headers.get('Content-Security-Policy') || '')?.[1];
+    if (!nonce) throw new Error('Markdown file loader nonce is missing');
+    response.headers.set('Content-Security-Policy', `sandbox allow-scripts; default-src 'none'; script-src 'nonce-${nonce}'; connect-src http: https:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'`);
     return response;
   }
   if (path === '/static/mermaid.js') return new Response(staticFiles['static/mermaid.js'], { headers: { 'Content-Type': 'text/javascript; charset=utf-8' } });
