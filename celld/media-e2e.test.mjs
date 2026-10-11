@@ -5,23 +5,30 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { execute, page, post, wikiHarness } from './wiki-test-helper.mjs';
 
-test('real browser downloads attachments and plays fullscreen video in wiki and chat', {timeout:120000}, async t=>{
+test('real browser enlarges images, downloads attachments and plays fullscreen video in wiki and chat', {timeout:300000}, async t=>{
   assert.ok(process.env.CHROME_BIN,'Set CHROME_BIN for the media browser test');
   const h=await wikiHarness(t,{WIKI_BOOK_LAYOUT_ENABLED:'1'}), wiki=await h.create('Media workshop');
   const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=','base64');
   const videoPath=join(h.directory,'clip.mp4'), imagePath=join(h.directory,'diagram.png'), jpegPath=join(h.directory,'still.jpg'), svgPath=join(h.directory,'vector.svg'), htmlPath=join(h.directory,'notes.html'), textPath=join(h.directory,'meeting notes.txt');
+  const largePath=join(h.directory,'landscape.png'), gifPath=join(h.directory,'motion.gif'), webpPath=join(h.directory,'landscape.webp');
+  const viewBoxPath=join(h.directory,'viewbox.svg');
   await execute('ffmpeg',['-v','error','-f','lavfi','-i','color=c=0xc98360:s=160x90:d=2','-an','-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart',videoPath]);
   await execute('ffmpeg',['-v','error','-i',videoPath,'-frames:v','1',jpegPath]);
-  const video=await readFile(videoPath), unsafe='<script>window.unsafeMedia=true</script>', note='Human attachment: retain the exact bytes.\n', pdf='%PDF-1.7\nExternal download fixture\n';
+  await execute('ffmpeg',['-v','error','-f','lavfi','-i','testsrc2=s=2400x1500','-frames:v','1',largePath]);
+  await execute('ffmpeg',['-v','error','-i',videoPath,'-t','0.5','-r','4',gifPath]);
+  await execute('ffmpeg',['-v','error','-i',largePath,'-vf','scale=800:500','-frames:v','1',webpPath]);
+  const video=await readFile(videoPath), largeImage=await readFile(largePath), unsafe='<script>window.unsafeMedia=true</script>', note='Human attachment: retain the exact bytes.\n', pdf='%PDF-1.7\nExternal download fixture\n';
   await writeFile(imagePath,png);await writeFile(htmlPath,unsafe);await writeFile(textPath,note);
   const client=join(h.directory,'wiki.mjs');await writeFile(client,(await h.http('/static/wiki.mjs')).body);
   const upload=async file=>JSON.parse((await execute(process.execPath,[client,'upload',wiki.url,file])).stdout);
   const imageFile=await upload(imagePath), videoFile=await upload(videoPath), htmlFile=await upload(htmlPath), jpegFile=await upload(jpegPath);
+  const largeFile=await upload(largePath), gifFile=await upload(gifPath), webpFile=await upload(webpPath);
   for(const file of [imageFile,videoFile,htmlFile])assert.ok(file.id,JSON.stringify(file));
   const externalRequests=[];
   const external=createServer((req,res)=>{
     externalRequests.push({path:req.url,authorization:req.headers.authorization,referer:req.headers.referer});
     if(req.url==='/clip.mp4')res.writeHead(200,{'Content-Type':'video/mp4','Content-Length':video.length}).end(video);
+    else if(req.url==='/photo.png')res.writeHead(200,{'Content-Type':'image/png','Content-Length':largeImage.length}).end(largeImage);
     else if(req.url==='/guide.pdf')res.writeHead(200,{'Content-Type':'application/pdf','Content-Disposition':'attachment; filename="guide.pdf"'}).end(pdf);
     else res.writeHead(200,{'Content-Type':'image/png'}).end(png);
   });
@@ -30,16 +37,19 @@ test('real browser downloads attachments and plays fullscreen video in wiki and 
   const externalBase='http://127.0.0.1:'+external.address().port;
   const svg='<svg xmlns="http://www.w3.org/2000/svg" width="24" height="16" onload="parent.unsafeMedia=true"><script>parent.unsafeMedia=true</script><image href="'+externalBase+'/svg-track.png" width="1" height="1"/><rect width="24" height="16" fill="red"/></svg>';
   await writeFile(svgPath,svg);const svgFile=await upload(svgPath);
+  await writeFile(viewBoxPath,'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 16"><rect width="24" height="16" fill="blue"/></svg>');
+  const viewBoxFile=await upload(viewBoxPath);
   assert.equal(svgFile.type,'image/svg+xml');assert.match(svgFile.markdown,/^!\[/);
-  const created=(await wiki.request('/pages',post(page('Media',[imageFile.markdown,videoFile.markdown,htmlFile.markdown,jpegFile.markdown,svgFile.markdown,'![unconsented]('+externalBase+'/never.png)','<video src="'+externalBase+'/raw.mp4"></video>'].join('\n\n'))))).body;
+  const created=(await wiki.request('/pages',post(page('Media',[imageFile.markdown,videoFile.markdown,htmlFile.markdown,jpegFile.markdown,largeFile.markdown,gifFile.markdown,webpFile.markdown,svgFile.markdown,viewBoxFile.markdown,'![unconsented]('+externalBase+'/never.png)','<video src="'+externalBase+'/raw.mp4"></video>'].join('\n\n'))))).body;
   const url=new URL(wiki.url);url.searchParams.set('page',created.id);
   const downloadPath=join(h.directory,'downloads');await mkdir(downloadPath);
   const capture=process.env.MAYFLY_MEDIA_CAPTURE_DIR;if(capture)await mkdir(capture,{recursive:true});
-  const config={chrome:process.env.CHROME_BIN,profile:join(h.directory,'chrome'),base:h.base,url:url.href,externalBase,downloadPath,textPath,note,unsafe,svg,pdf,png:png.toString('base64'),video:video.toString('base64'),videoID:videoFile.id,htmlID:htmlFile.id,capture};
+  const config={chrome:process.env.CHROME_BIN,profile:join(h.directory,'chrome'),base:h.base,url:url.href,externalBase,downloadPath,textPath,note,unsafe,svg,pdf,png:png.toString('base64'),video:video.toString('base64'),videoID:videoFile.id,largeID:largeFile.id,htmlID:htmlFile.id,capture};
   let harness=await readFile(new URL('../srv/testdata/chrome.cjs',import.meta.url),'utf8');
   harness=harness.replace('const msg=JSON.parse(raw), p=pending.get(msg.id);', 'const msg=JSON.parse(raw); if(msg.method==="Network.requestWillBeSent") requests.push(msg.params.request); const p=pending.get(msg.id);');
   const exercise=String.raw`
 const fs=require('node:fs'),path=require('node:path');
+const rawCDP=cdp;cdp=async(method,params,session)=>{let timer;try{return await Promise.race([rawCDP(method,params,session),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('CDP timeout: '+method+' '+JSON.stringify(params).slice(0,600))),30000);})]);}finally{clearTimeout(timer);}};
 (async()=>{try{
   const {targetInfos}=await cdp('Target.getTargets');const tab=await attach(targetInfos.find(t=>t.type==='page').targetId);
   await cdp('Network.enable',{},tab.sessionId);
@@ -57,6 +67,85 @@ const fs=require('node:fs'),path=require('node:path');
     const box=await evaluate(tab,'(()=>{const e='+expression+';e.scrollIntoView({block:"center"});const r=e.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()');
     await cdp('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...box},tab.sessionId);
     await cdp('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...box},tab.sessionId);
+  };
+  const key=async(key,code,keyCode,modifiers=0)=>{
+    await cdp('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:keyCode,modifiers,...(key==='Enter'?{text:'\r',unmodifiedText:'\r'}:{})},tab.sessionId);
+    await cdp('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:keyCode,modifiers},tab.sessionId);
+  };
+  const viewerSize=()=>evaluate(tab,'(()=>{const d=document.querySelector(".media-image-dialog"),v=d.querySelector(".media-image-viewport"),i=d.querySelector(".media-image-full"),dr=d.getBoundingClientRect(),vr=v.getBoundingClientRect(),ir=i.getBoundingClientRect();return {dialog:{x:dr.x,y:dr.y,width:dr.width,height:dr.height},viewport:{x:vr.x,y:vr.y,width:vr.width,height:vr.height},width:ir.width,height:ir.height,naturalWidth:i.naturalWidth,naturalHeight:i.naturalHeight,zoom:parseFloat(d.querySelector(".media-image-zoom").textContent),scrollLeft:v.scrollLeft,scrollTop:v.scrollTop,screenWidth:innerWidth,screenHeight:innerHeight}})()');
+  const openViewer=async(name,keyboard=false)=>{
+    const opener=card(name)+'.querySelector("'+(keyboard?'.media-enlarge':'.media-image-trigger')+'")';
+    await until(()=>evaluate(tab,opener+'&&!'+opener+'.disabled'),'image viewer control ready '+name);
+    await evaluate(tab,'window.viewerReturnTarget='+opener+';window.viewerPreviewSource='+card(name)+'.querySelector(".media-preview img").src');
+    if(keyboard){await evaluate(tab,'viewerReturnTarget.scrollIntoView({block:"center"});viewerReturnTarget.focus()');await key('Enter','Enter',13);}
+    else await click(opener);
+    await until(()=>evaluate(tab,'(()=>{const d=document.querySelector(".media-image-dialog"),i=d?.querySelector(".media-image-full");return d?.open&&i?.complete&&i.getBoundingClientRect().width>0})()'),'image viewer opened '+name).catch(async error=>{throw new Error(error.message+' '+JSON.stringify(await evaluate(tab,'({active:document.activeElement?.outerHTML,dialogs:[...document.querySelectorAll(".media-image-dialog")].map(d=>d.outerHTML),errors:mediaErrors,violations:mediaViolations})')));});
+    assert.equal(await evaluate(tab,'document.querySelector(".media-image-full").src'),await evaluate(tab,'viewerPreviewSource'),'viewer reuses the loaded preview source');
+    assert.ok(await evaluate(tab,'document.querySelector(".media-image-dialog").contains(document.activeElement)'),'focus enters modal');
+    await evaluate(tab,'new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+    const size=await viewerSize();
+    assert.ok(size.dialog.x>=-1&&size.dialog.y>=-1&&size.dialog.x+size.dialog.width<=size.screenWidth+1&&size.dialog.y+size.dialog.height<=size.screenHeight+1,'viewer fits screen');
+    assert.ok(size.width<=size.viewport.width+1&&size.height<=size.viewport.height+1,'initial image fits viewport');
+    if(size.naturalWidth)assert.ok(size.width<=size.naturalWidth+1,'fit does not upscale small images');
+    return size;
+  };
+  const closedViewer=async()=>{
+    await until(()=>evaluate(tab,'!document.querySelector(".media-image-dialog")?.open'),'image viewer closed');
+    assert.ok(await evaluate(tab,'document.activeElement===viewerReturnTarget'),'focus returns to the invoking image control');
+  };
+  const closeViewer=async()=>{await click('document.querySelector(".media-image-close")');await closedViewer();};
+  const zoomImage=async()=>{
+    const fitted=await viewerSize();assert.ok(fitted.width<fitted.naturalWidth,'large image starts at fit scale');
+    await click('document.querySelector(".media-image-zoom-in")');
+    await until(async()=>{const s=await viewerSize();return s.width>fitted.width&&s.zoom>fitted.zoom;},'zoom in enlarges image');
+    const enlarged=await viewerSize();
+    await click('document.querySelector(".media-image-zoom-out")');
+    await until(async()=>{const s=await viewerSize();return s.width<enlarged.width&&s.zoom<enlarged.zoom;},'zoom out reduces image');
+    await click('document.querySelector(".media-image-actual")');
+    await until(async()=>{const s=await viewerSize();return Math.abs(s.width-s.naturalWidth)<1&&Math.abs(s.height-s.naturalHeight)<1&&s.zoom===100;},'100% uses native image dimensions');
+    let before=await viewerSize();const center={x:before.viewport.x+before.viewport.width/2,y:before.viewport.y+before.viewport.height/2};
+    await cdp('Input.dispatchMouseEvent',{type:'mouseWheel',deltaX:0,deltaY:-120,...center},tab.sessionId);
+    await until(async()=>{const s=await viewerSize();return s.width>before.width&&s.zoom>before.zoom;},'wheel zoom enlarges image');
+    before=await viewerSize();
+    await cdp('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...center},tab.sessionId);
+    await cdp('Input.dispatchMouseEvent',{type:'mouseMoved',button:'left',buttons:1,x:center.x-100,y:center.y-70},tab.sessionId);
+    await cdp('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,x:center.x-100,y:center.y-70},tab.sessionId);
+    await until(async()=>{const s=await viewerSize();return s.scrollLeft>before.scrollLeft+30&&s.scrollTop>before.scrollTop+20;},'drag pans a zoomed image');
+    await click('document.querySelector(".media-image-fit")');
+    await until(async()=>{const s=await viewerSize();return Math.abs(s.width-fitted.width)<2&&Math.abs(s.height-fitted.height)<2;},'fit restores full image visibility').catch(async error=>{throw new Error(error.message+' '+JSON.stringify({fitted,current:await viewerSize()}));});
+  };
+  const keyboardViewer=async()=>{
+    const fitted=await viewerSize();
+    for(const [selector,direction] of [['.media-image-zoom-in','maximum'],['.media-image-zoom-out','minimum']]){
+      await evaluate(tab,'(()=>{const b=document.querySelector('+JSON.stringify(selector)+');b.focus();for(let n=0;n<40;n++)b.click()})()');
+      const limit=await viewerSize();
+      assert.ok(await evaluate(tab,'document.querySelector(".media-image-dialog").contains(document.activeElement)'),'focus stays in dialog at '+direction+' zoom');
+      await evaluate(tab,'document.querySelector('+JSON.stringify(selector)+').click()');
+      assert.equal((await viewerSize()).width,limit.width,direction+' zoom is bounded');
+      await key('f','KeyF',70);
+      await until(async()=>Math.abs((await viewerSize()).width-fitted.width)<2,'keyboard fit works after '+direction+' zoom');
+    }
+    await key('0','Digit0',48);
+    await until(async()=>{const s=await viewerSize();return Math.abs(s.width-s.naturalWidth)<1&&s.zoom===100;},'keyboard 0 selects native dimensions');
+    const actual=await viewerSize();await key('+','Equal',187,8);
+    await until(async()=>{const s=await viewerSize();return s.width>actual.width&&s.zoom>actual.zoom;},'keyboard + zooms in');
+    const enlarged=await viewerSize();await key('-','Minus',189);
+    await until(async()=>{const s=await viewerSize();return s.width<enlarged.width&&s.zoom<enlarged.zoom;},'keyboard - zooms out');
+    const before=await viewerSize();await key('ArrowRight','ArrowRight',39);await key('ArrowDown','ArrowDown',40);
+    await until(async()=>{const s=await viewerSize();return s.scrollLeft>before.scrollLeft+20&&s.scrollTop>before.scrollTop+20;},'keyboard arrows pan image');
+    const panned=await viewerSize();await key('ArrowLeft','ArrowLeft',37);await key('ArrowUp','ArrowUp',38);
+    await until(async()=>{const s=await viewerSize();return s.scrollLeft<panned.scrollLeft-20&&s.scrollTop<panned.scrollTop-20;},'opposite keyboard arrows pan back');
+    await key('f','KeyF',70);
+    await until(async()=>Math.abs((await viewerSize()).width-fitted.width)<2,'keyboard fit restores full image');
+  };
+  const resizeViewer=async()=>{
+    const original=await viewerSize();
+    await cdp('Emulation.setDeviceMetricsOverride',{width:960,height:720,deviceScaleFactor:1,mobile:false},tab.sessionId);
+    await until(async()=>{const s=await viewerSize();return s.screenWidth===960&&s.width<original.width&&s.width<=s.viewport.width+1&&s.height<=s.viewport.height+1;},'open fit viewer shrinks with screen');
+    const smaller=await viewerSize();
+    assert.ok(smaller.dialog.x>=0&&smaller.dialog.y>=0&&smaller.dialog.x+smaller.dialog.width<=960+1&&smaller.dialog.y+smaller.dialog.height<=720+1,'resized dialog stays within screen');
+    await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:1040,deviceScaleFactor:1,mobile:false},tab.sessionId);
+    await until(async()=>{const s=await viewerSize();return s.screenWidth===1440&&Math.abs(s.width-original.width)<2&&Math.abs(s.height-original.height)<2;},'open fit viewer expands with screen');
   };
   const downloaded=async(name,bytes)=>{
     const file=path.join(config.downloadPath,name);
@@ -78,7 +167,7 @@ const fs=require('node:fs'),path=require('node:path');
     await until(()=>evaluate(tab,'!document.fullscreenElement'),'video left fullscreen');
   };
   await cdp('Page.navigate',{url:config.url},tab.sessionId);
-  await until(()=>evaluate(tab,'document.querySelectorAll("#wiki-content .mayfly-media").length===6'),'wiki attachment cards');
+  await until(()=>evaluate(tab,'document.querySelectorAll("#wiki-content .mayfly-media").length===10'),'wiki attachment cards');
   await until(()=>evaluate(tab,'document.querySelector("#wiki-content img")?.naturalWidth===1'),'owned image preview').catch(async error=>{console.error(await evaluate(tab,'({html:document.getElementById("wiki-content").innerHTML,errors:mediaErrors,csp:mediaViolations})'));throw error;});
   await until(()=>evaluate(tab,card('vector.svg')+'?.querySelector("img")?.naturalWidth===24'),'SVG image preview');
   assert.ok(await evaluate(tab,card('vector.svg')+'.querySelector("img").src.startsWith("data:image/svg+xml")'));
@@ -87,6 +176,29 @@ const fs=require('node:fs'),path=require('node:path');
   assert.equal(requests.filter(r=>r.method==='GET'&&r.url.includes('/attachments/'+config.videoID)).length,0,'no eager video bytes');
   await until(()=>evaluate(tab,card('notes.html')+'?.querySelector(".text-source code")?.textContent==='+JSON.stringify(config.unsafe)),'HTML source previews as inert text');
   assert.ok(!requests.some(r=>r.url.startsWith(config.externalBase)),'no automatic external media requests');
+  await until(()=>evaluate(tab,card('landscape.png')+'?.querySelector("img")?.naturalWidth===2400'),'large image preview');
+  const thumbnailWidth=await evaluate(tab,card('landscape.png')+'.querySelector("img").getBoundingClientRect().width');
+  const desktopViewer=await openViewer('landscape.png');
+  assert.ok(desktopViewer.width>thumbnailWidth*1.5,'desktop modal displays a substantially larger image than its thumbnail');
+  await zoomImage();await keyboardViewer();await resizeViewer();await capture('wiki-image-desktop');await key('Escape','Escape',27);await closedViewer();
+  await openViewer('landscape.png',true);await key('Tab','Tab',9);
+  assert.ok(await evaluate(tab,'document.querySelector(".media-image-dialog").contains(document.activeElement)'),'Tab focus stays inside modal');
+  await closeViewer();
+  await openViewer('landscape.png');
+  await cdp('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,x:1,y:1},tab.sessionId);
+  await cdp('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,x:1,y:1},tab.sessionId);
+  await closedViewer();
+  for(const [name,width,height] of [['diagram.png',1,1],['still.jpg',160,90],['motion.gif',160,90],['landscape.webp',800,500],['vector.svg',24,16]]){
+    const size=await openViewer(name);assert.equal(size.naturalWidth,width);assert.equal(size.naturalHeight,height);await closeViewer();
+  }
+  const viewBoxViewer=await openViewer('viewbox.svg',true);
+  assert.ok(viewBoxViewer.width>0&&viewBoxViewer.height>0,'viewBox-only SVG opens and renders');
+  await click('document.querySelector(".media-image-actual")');
+  assert.ok((await viewerSize()).width>0&&(await viewerSize()).height>0,'viewBox-only SVG has a usable actual size');
+  await closeViewer();
+  assert.equal(requests.filter(r=>r.method==='GET'&&r.url.includes('/attachments/'+config.largeID)).length,1,'opening and zooming reuse authenticated image bytes');
+  assert.equal(await evaluate(tab,'window.unsafeMedia'),undefined);
+  assert.ok(!requests.some(r=>r.url.startsWith(config.externalBase)),'enlarging SVG and owned images does not contact external media');
   await copyImage('diagram.png',1,1);await copyImage('still.jpg',160,90);await copyImage('vector.svg',24,16);
   await click(card('diagram.png')+'.querySelector(".media-download")');await downloaded('diagram.png',Buffer.from(config.png,'base64'));
   await click(card('notes.html')+'.querySelector(".media-download")');await downloaded('notes.html',Buffer.from(config.unsafe));
@@ -109,7 +221,27 @@ const fs=require('node:fs'),path=require('node:path');
   await capture('wiki-desktop');
   await fullscreen();
   await cdp('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true},tab.sessionId);
+  await cdp('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:1},tab.sessionId);
   assert.ok(await evaluate(tab,'document.documentElement.scrollWidth<=innerWidth'),'mobile wiki width');
+  const mobileViewer=await openViewer('landscape.png',true);
+  assert.ok(mobileViewer.width>=mobileViewer.screenWidth*.75,'mobile viewer uses the available screen width');
+  await capture('wiki-image-mobile');
+  await click('document.querySelector(".media-image-actual")');
+  await until(async()=>Math.abs((await viewerSize()).width-2400)<1,'mobile native image size');
+  const touchBefore=await viewerSize(),touchCenter={x:touchBefore.viewport.x+touchBefore.viewport.width/2,y:touchBefore.viewport.y+touchBefore.viewport.height/2};
+  await cdp('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[touchCenter]},tab.sessionId);
+  for(const offset of [30,60,90,120]){
+    await cdp('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:touchCenter.x-offset,y:touchCenter.y-offset}]},tab.sessionId);await sleep(20);
+  }
+  await cdp('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]},tab.sessionId);
+  await until(async()=>{const s=await viewerSize();return s.scrollLeft>touchBefore.scrollLeft+20||s.scrollTop>touchBefore.scrollTop+20;},'mobile swipe pans image');
+  await click('document.querySelector(".media-image-fit")');
+  await until(async()=>Math.abs((await viewerSize()).width-mobileViewer.width)<2,'mobile fit restores full image');
+  await closeViewer();
+  await openViewer('landscape.png');
+  await evaluate(tab,card('landscape.png')+'.remove()');
+  await until(()=>evaluate(tab,'!document.querySelector(".media-image-dialog")?.open'),'removing image source closes its viewer');
+  assert.ok(await evaluate(tab,'!viewerReturnTarget.isConnected&&document.activeElement!==viewerReturnTarget'),'removed controls do not retain focus');
   await copyImage('diagram.png',1,1);
   await capture('wiki-mobile');
   await fullscreen();
@@ -131,7 +263,7 @@ const fs=require('node:fs'),path=require('node:path');
   assert.ok(await evaluate(tab,card('clip.mp4')+'.querySelector(".media-share").hidden'),'unsupported file sharing stays hidden');
   await click(card('meeting notes.txt')+'.querySelector(".media-download")');await downloaded('meeting notes.txt',Buffer.from(config.note));
   assert.deepEqual(await evaluate(tab,'mediaErrors'),[]);assert.deepEqual(await evaluate(tab,'mediaViolations'),[]);
-  console.log('PASS wiki: actual PNG/JPEG clipboard, full MP4 share API handoff/cancel/unsupported fallback, exact downloads, playback and fullscreen on desktop/mobile');
+  console.log('PASS wiki: image modal PNG/GIF/WebP/SVG, fit/native/zoom/wheel/drag/touch, keyboard/focus/cleanup, authenticated source reuse, actual clipboard, MP4 share/download/playback/fullscreen');
   await cdp('Page.navigate',{url:config.base+'/'},tab.sessionId);
   await until(()=>evaluate(tab,'typeof newChannel==="function"'),'chat creation');await click('document.getElementById("newbtn")');
   await until(()=>evaluate(tab,'!!document.getElementById("compose")&&!document.getElementById("main").hidden'),'chat ready');
@@ -140,9 +272,12 @@ const fs=require('node:fs'),path=require('node:path');
   await evaluate(tab,'document.getElementById("text").value='+JSON.stringify(message)+';document.getElementById("compose").requestSubmit()');
   await until(()=>evaluate(tab,'document.querySelectorAll("#log .mayfly-media").length===3'),'chat media delivered');
   assert.equal(await evaluate(tab,'document.querySelectorAll("#log .media-copy,#log .media-share").length'),0,'external files remain download/open controls');
+  assert.equal(await evaluate(tab,'(()=>{const b='+card('Chat image')+'.querySelector(".media-enlarge");return !!b&&!b.disabled&&b.getClientRects().length>0})()'),false,'external image cannot be enlarged before load consent');
   assert.ok(!requests.some(r=>r.url.startsWith(config.externalBase)),'chat media remains opt-in');
   await click(card('Chat image')+'.querySelector(".media-load")');
-  await until(()=>evaluate(tab,'document.querySelector("#log img")?.naturalWidth===1'),'chat image loaded');
+  await until(()=>evaluate(tab,'document.querySelector("#log img")?.naturalWidth===2400'),'chat image loaded');
+  await openViewer('Chat image',true);await zoomImage();await capture('chat-image-mobile');await closeViewer();
+  assert.equal(requests.filter(r=>r.url===config.externalBase+'/photo.png').length,1,'external viewer reuses the consented image request');
   await click(card('Chat video')+'.querySelector(".media-load")');await readyVideo();await fullscreen();
   await cdp('Runtime.evaluate',{expression:'document.querySelector(".media-preview video").play()',userGesture:true,awaitPromise:true},tab.sessionId);
   await until(()=>evaluate(tab,'document.querySelector(".media-preview video").currentTime>.15'),'external chat video plays');
@@ -153,10 +288,10 @@ const fs=require('node:fs'),path=require('node:path');
   assert.ok(await evaluate(tab,'document.documentElement.scrollWidth<=innerWidth'),'mobile chat width');
   assert.equal(await evaluate(tab,'window.unsafeMedia'),undefined);
   assert.deepEqual(await evaluate(tab,'mediaErrors'),[]);assert.deepEqual(await evaluate(tab,'mediaViolations'),[]);
-  console.log('PASS chat: opt-in external image/video, playback and fullscreen, file download, mobile layout and CSP');
+  console.log('PASS chat: external image consent, modal zoom/source reuse, video playback/fullscreen, file download, mobile layout and CSP');
 }finally{chrome.kill('SIGTERM');await exited;}})().catch(error=>{console.error(error);process.exitCode=1;});`;
   const script=join(h.directory,'media.cjs');await writeFile(script,'const config='+JSON.stringify(config)+';\nconst requests=[];\n'+harness+'\n'+exercise);
-  try {const {stdout}=await execute(process.execPath,[script],{timeout:90000,maxBuffer:1024*1024});t.diagnostic(stdout);}
+  try {const {stdout}=await execute(process.execPath,[script],{timeout:270000,maxBuffer:1024*1024});t.diagnostic(stdout);}
   catch(error){throw new Error((error.stdout||'')+(error.stderr||error.message));}
   assert.ok(externalRequests.some(r=>r.path==='/clip.mp4'));
   assert.ok(externalRequests.every(r=>!r.authorization&&!r.referer),'no app credentials or referrers reach external media');
