@@ -103,6 +103,13 @@ Markdown supports tables, lists, links and fenced code, with basic lexical
 highlighting for common programming and configuration formats. Fenced blocks
 show up to 50 lines initially, with **Expand**, **Show first 50 lines** and
 **Minimize** / **Show preview** controls, just like text attachments.
+For `markdown` or `md` fences and uploaded `.md` / `.markdown` files, choose
+**Preview Markdown** to render headings, lists, tables, links and code. **Show
+source** returns to the text view. Rendering uses the full document, up to
+**256 KiB**, even when the source view shows only 50 lines. Larger files keep
+their source, copy and download controls. Raw HTML stays literal and external
+images require a separate click. These controls also work on chat code blocks.
+
 Use a `mermaid` fence to render a diagram in saved pages and editor previews:
 
 ````markdown
@@ -178,9 +185,15 @@ XML source can preview as inert text. Uploaded `.html` and `.htm` files also
 offer **Preview HTML** after their source loads, with the same limits and
 isolation as fenced HTML. SVG downloads retain attachment disposition.
 External HTTP(S) images and direct video links require a click before loading.
-External files retain **Download / open**, without the uploaded-file copy/share
-actions. These links may open a browser viewer instead of saving;
-use that viewer's Save command. Mayfly never forwards its bearer to those hosts.
+External `.md` and `.markdown` links in chat and wiki also offer **Preview
+Markdown**. Files load only after a click, must be UTF-8 and at most 256 KiB,
+and the host must permit CORS requests from an opaque origin. The source and
+copy controls become available after loading. Relative HTTP(S) links resolve
+against the file URL; external files cannot resolve private wiki page or
+attachment references. If loading fails, **Download / open** stays available.
+Other external files retain **Download / open**. These links may open a browser
+viewer instead of saving; use that viewer's Save command. Mayfly never forwards
+its bearer, cookies or referrer when fetching external Markdown.
 
 Discussion supports page comments, uniquely named `#`-style section comments, replies and
 resolve/reopen. A section thread records its original heading and revision. If

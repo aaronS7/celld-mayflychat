@@ -14,7 +14,7 @@ function createPoller({read, deliver, isStopped, onMissing, onUnauthorized, onSt
         const deadline = setTimeout(() => controller.abort(), 35000);
         try {
           const response = await read(controller.signal);
-          if (response.status === 404) { onMissing(); return; }
+          if (response.status === 404 || response.status === 410) { onMissing(); return; }
           if (response.status === 401) { onUnauthorized(); return; }
           if (!response.ok) throw new Error(response.status);
           const page = await response.json();
@@ -22,7 +22,7 @@ function createPoller({read, deliver, isStopped, onMissing, onUnauthorized, onSt
           clearTimeout(deadline);
           wake = null; // Delivery finishes before the next read or lifecycle nudge.
           if (isStopped()) return;
-          await deliver(page.events);
+          await deliver(page.events, page);
           if (isStopped()) return;
           onStatus('');
         } catch (error) {

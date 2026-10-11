@@ -1,4 +1,5 @@
-// Text previews only create text nodes and app-owned spans, never rendered HTML.
+// Source previews use text nodes and app-owned spans. Markdown rendering is
+// opt-in and supplied by the caller's sanitizing renderer.
 function mayflyTextLanguage(name, type = '') {
   const extensions = {
     json:'json', jsonc:'jsonc', jsonl:'jsonl', ndjson:'jsonl', yaml:'yaml', yml:'yaml',
@@ -82,7 +83,7 @@ function mayflyHighlight(code, value, language) {
   }
   fragment.append(value.slice(position)); code.replaceChildren(fragment);
 }
-function mayflyTextPreview(source, {language = 'text', name = 'Code', format = false} = {}) {
+function mayflyTextPreview(source, {language = 'text', name = 'Code', format = false, renderMarkdown} = {}) {
   const readable = format ? mayflyReadableText(source, language) : {text:source.replace(/\r\n?/g,'\n').replace(/\n$/,''),formatted:false};
   const value = readable.text;
   let lines = value ? 1 : 0, cutoff = value.length;
@@ -97,33 +98,55 @@ function mayflyTextPreview(source, {language = 'text', name = 'Code', format = f
   root.setAttribute('role','group');root.setAttribute('aria-label',name+' text preview');
   const pre=el('pre','text-source'), code=document.createElement('code'); pre.append(code); pre.tabIndex=0;
   pre.id='text-preview-'+crypto.randomUUID();pre.setAttribute('aria-label',name+' preview');
+  const rendered=el('div','text-rendered prose'), markdown=el('button','text-markdown','Preview Markdown');
+  rendered.id=pre.id+'-markdown';rendered.hidden=true;rendered.tabIndex=0;
+  rendered.setAttribute('role','region');rendered.setAttribute('aria-label',name+' rendered Markdown');
+  markdown.type='button';markdown.setAttribute('aria-controls',rendered.id);
+  const canRender=language==='markdown' && typeof renderMarkdown==='function';
+  markdown.disabled=canRender && new TextEncoder().encode(source).length>256*1024;
+  if(markdown.disabled)status.textContent='Markdown preview is limited to 256 KiB. The source remains available.';
   const expand=el('button','text-expand'), minimize=el('button','text-minimize');
   for(const button of [expand,minimize]){button.type='button';button.setAttribute('aria-controls',pre.id);}
-  let expanded=false, minimized=false;
+  if(canRender)minimize.setAttribute('aria-controls',pre.id+' '+rendered.id);
+  let expanded=false, minimized=false, showingMarkdown=false, renderedOnce=false;
   const render=()=>{
     const shown=expanded?value:value.slice(0,cutoff);
-    pre.hidden=minimized; expand.hidden=minimized||!shortened;
+    pre.hidden=minimized||showingMarkdown; expand.hidden=minimized||showingMarkdown||!shortened;
+    rendered.hidden=minimized||!showingMarkdown;
+    markdown.textContent=showingMarkdown?'Show source':'Preview Markdown';markdown.setAttribute('aria-expanded',String(showingMarkdown&&!minimized));
     expand.textContent=expanded?'Show first 50 lines':'Expand';expand.setAttribute('aria-expanded',String(expanded));
     minimize.textContent=minimized?'Show preview':'Minimize';minimize.setAttribute('aria-expanded',String(!minimized));
     const total=lines+(lines===1?' line':' lines');
-    info.textContent=language.toUpperCase()+(readable.formatted?' · formatted':'')+' · '+(minimized?'Preview minimized':value?'Showing '+(expanded||!shortened?total:(shown.match(/\n/g)||[]).length+1+' of '+total+(cutoff===16*1024?' (long line shortened)':'')):'Empty file');
-    if(!minimized)mayflyHighlight(code,shown,language);
+    info.textContent=language.toUpperCase()+(readable.formatted?' · formatted':'')+' · '+(minimized?'Preview minimized':showingMarkdown?'Rendered preview':value?'Showing '+(expanded||!shortened?total:(shown.match(/\n/g)||[]).length+1+' of '+total+(cutoff===16*1024?' (long line shortened)':'')):'Empty file');
+    if(!pre.hidden)mayflyHighlight(code,shown,language);
     else code.replaceChildren();
     pre.scrollTop=0;pre.scrollLeft=0;
   };
   expand.addEventListener('click',()=>{expanded=!expanded;render();});
   minimize.addEventListener('click',()=>{minimized=!minimized;if(minimized)expanded=false;render();});
+  markdown.addEventListener('click',()=>{
+    try {
+      if(!showingMarkdown && !renderedOnce){
+        if(source.trim())rendered.replaceChildren(renderMarkdown(source));
+        else rendered.textContent='Nothing to preview.';
+        renderedOnce=true;
+      }
+      showingMarkdown=!showingMarkdown;minimized=false;status.textContent='';render();
+    } catch {status.textContent='Markdown preview unavailable. The source remains available.';}
+  });
   const copy=mayflyCopyOptions([
     {label:'Copy contents',className:'text-copy-contents',data:()=>({'text/plain':source}),success:'Full contents copied.'},
     {label:'Copy as Markdown',className:'text-copy-markdown',data:()=>({'text/plain':mayflyCopyMarkdown(value,name,language)}),success:'Full contents copied as Markdown.'},
     {label:'Copy formatted text',className:'text-copy-formatted',data:()=>({'text/html':mayflyCopyHTML(value,language),'text/plain':value}),success:'Full formatted text copied.'}
   ],status);
-  actions.append(info,copy,expand,minimize);root.append(actions,status,pre);render();return root;
+  actions.append(info,copy);if(canRender)actions.append(markdown);
+  actions.append(expand,minimize);root.append(actions,status,pre);if(canRender)root.append(rendered);
+  render();return root;
 }
-function mayflyEnhanceCode(fragment) {
+function mayflyEnhanceCode(fragment, renderMarkdown) {
   for(const code of fragment.querySelectorAll('pre > code')) {
     if(code.closest('.mayfly-text'))continue;
     const language=mayflyCodeLanguage(code.getAttribute('title'));
-    code.parentElement.replaceWith(mayflyTextPreview(code.textContent,{language}));
+    code.parentElement.replaceWith(mayflyTextPreview(code.textContent,{language,renderMarkdown}));
   }
 }

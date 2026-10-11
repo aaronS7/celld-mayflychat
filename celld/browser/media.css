@@ -28,6 +28,9 @@
 .mayfly-text .text-source[hidden]{display:none}
 .mayfly-text .text-source code{font:inherit;white-space:pre;background:none;border:0;padding:0;color:inherit;overflow-wrap:normal;word-break:normal}
 .mayfly-text .text-source:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.mayfly-text .text-rendered{padding:.75rem;max-width:100%;max-height:min(65vh,34rem);overflow:auto;white-space:normal;overscroll-behavior:contain}
+.text-rendered>:first-child{margin-top:0}.text-rendered>:last-child{margin-bottom:0}
+.text-rendered table{display:block;max-width:100%;overflow:auto}
 .mayfly-text .wiki-code-keyword{color:var(--accent);font-weight:650}
 .mayfly-text .wiki-code-string{color:light-dark(#496827,#a9ce83)}
 .mayfly-text .wiki-code-property{color:light-dark(#225f8c,#88bfe6)}

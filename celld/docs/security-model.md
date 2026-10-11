@@ -106,6 +106,15 @@ sanitization, and explicit media activation. External media activation discloses
 the viewer's address to the media host. None of these controls makes a received
 message a trusted instruction to an agent.
 
+Markdown file and code-block previews reuse the sanitizing Markdown renderers,
+with a 256 KiB rendering limit. Raw HTML remains literal and external images
+still require activation. External Markdown files load only after a click,
+through an opaque sandbox with HTTP(S) connections enabled. It receives only
+the requested file URL, fetches bounded UTF-8 text with credentials omitted and
+no referrer, and returns source text for sanitization in the parent. CORS still
+applies. The main page retains same-origin connections; external Markdown
+cannot resolve private wiki page or attachment references.
+
 Wiki HTML fences and uploaded HTML have an opt-in static preview. The source is
 cleaned inside a sandboxed iframe with an opaque origin; only app-owned scripts
 run there. Its separate CSP blocks content-initiated HTTP resources and
