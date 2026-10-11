@@ -59,6 +59,11 @@ It requires the existing consolidated fleet's private configuration and helper;
 it does not provision a new fleet. Verify a real summary after deploying, since
 availability flags alone do not establish provider health.
 
+The Mercury workflow refuses new bindings, so it stops until the admin
+management migration has been applied once through a private deployment, and it
+cannot change management variables afterwards. See
+[admin setup](management-setup.md#5-deploy).
+
 For production, deploy to a supported fleet bucket, run celld under a process
 supervisor, and put its public listener behind an HTTPS proxy, following the
 upstream celld guide. [Operations](operations.md) covers Mayfly's timeouts,

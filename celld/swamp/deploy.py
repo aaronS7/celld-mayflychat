@@ -169,6 +169,7 @@ def redeploy(checkout, fleet, mercury, dry_run, origin, verify=verify_policy):
     with tempfile.TemporaryDirectory(prefix="mayfly-mercury-", dir=fleet.directory) as tmp:
         stage = Path(tmp)
         shutil.copytree(checkout / "celld/native", stage / "celld/native")
+        (stage / "node_modules").symlink_to((checkout / "node_modules").resolve(), target_is_directory=True)
         config_path = stage / "wrangler.json"
         with config_path.open("x") as out:
             os.chmod(config_path, 0o600)

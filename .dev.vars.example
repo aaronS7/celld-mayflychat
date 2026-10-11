@@ -16,3 +16,26 @@ TRUST_PROXY=0
 # Used when encryption is off and a Jev feature is enabled:
 # TYPESAFE_API_KEY=your-api-key
 # TYPESAFE_MODEL=jev-latest
+
+# Admin panel: step-by-step guide in celld/docs/management-setup.md,
+# reference in celld/docs/management.md.
+# Archives use the ARCHIVES binding in Celld's existing fleet bucket by default.
+# No additional S3 endpoint or credentials are needed.
+MANAGEMENT_ENABLED=0
+# Local origin must be exactly what you open; npm run dev listens here.
+# Register http://127.0.0.1:9876/admin/callback with the provider.
+# MANAGEMENT_ORIGIN=http://127.0.0.1:9876
+# OIDC_ISSUER=https://identity.example.com
+# OIDC_CLIENT_ID=mayfly-admin
+# OIDC_CLIENT_SECRET=private-client-secret
+# Here, write the JSON array as-is (no backslashes, no trailing comment).
+# In wrangler.jsonc vars it is a string: "[\"stable-admin-subject\"]"
+# OIDC_ADMIN_SUBJECTS=["stable-admin-subject"]
+# Invalid defaults below make chat/wiki creation fail with 503 while enabled.
+# MANAGEMENT_CHAT_IDLE_SECONDS=86400
+# MANAGEMENT_CHAT_AGE_SECONDS=0
+# MANAGEMENT_WIKI_IDLE_SECONDS=0
+# MANAGEMENT_WIKI_AGE_SECONDS=0
+# MANAGEMENT_ARCHIVE_ON_TTL=0
+# Audit history retention in days (1-3650):
+# MANAGEMENT_AUDIT_DAYS=90

@@ -41,6 +41,9 @@ Files have download controls, videos have playback and fullscreen controls, and
 JSON and other common text formats preview with syntax highlighting and a
 50-line initial view. Copy full text or download original bytes, including MP4s
 and other binary files. Chat uses external file links; wikis store uploaded files.
+Markdown files and `md` / `markdown` code blocks offer **Preview Markdown** and
+**Show source**, with full-document rendering up to 256 KiB. External Markdown
+previews load after a click when the file host permits browser access.
 
 **Export page** packages one saved Markdown page and its referenced attachments
 for a repository or GitHub PR. **Export wiki** packages all current pages and
@@ -63,3 +66,8 @@ plaintext chats, saved wiki pages and bounded wiki overviews. Header buttons
 show live text, coverage and saved source links. Enable with
 `AI_SUMMARY_ENABLED=1`, `MERCURY_BASE_URL` and a private `MERCURY_API_KEY`;
 summaries default off and are unavailable for encrypted chats.
+
+Optional [admin management](celld/docs/management.md) adds an OIDC-protected
+`/admin` panel with per-resource TTLs, full backups and restore for chats and
+wikis created after it is enabled. It defaults off; follow
+[Setting up the admin panel](celld/docs/management-setup.md) to enable it.

@@ -185,3 +185,14 @@ provider settings and stores them in an encrypted swamp vault. Use
 `npm run mercury:preview` to check the build, then `npm run mercury:deploy` to
 redeploy with summaries enabled and existing bindings preserved. See the
 [workflow and credential setup](swamp/README.md).
+
+## Optional admin management
+
+`MANAGEMENT_ENABLED=1` enrolls newly created resources in the OIDC-protected
+`/admin` inventory. Configure idle and maximum-age TTLs, full backups before
+expiry, manual archives and restoration using original links. Restores pause
+both TTLs. Backups use the `ARCHIVES` R2 binding in Celld's existing fleet bucket
+by default, without additional storage credentials. A separate S3 bucket is
+optional. Follow [Setting up the admin panel](docs/management-setup.md) for
+OIDC registration, deployment and verification, and see
+[management operations](docs/management.md) for the reference.

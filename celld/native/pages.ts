@@ -82,20 +82,23 @@ export function render(name: keyof typeof templates, values: Record<string, stri
   Object.assign(fields, { CSPNonce: nonce, "Channel.ID": scriptJSON(values.ID || ""), ExpiresAtJSON: scriptJSON(values.ExpiresAt || ""), ExpiresHidden: values.ExpiresAt ? "" : " hidden" });
   if (config) Object.assign(fields, { SettingsJSON: scriptJSON(config), PrivacyText: escapeHTML(privacyText(config)) });
   const body = templates[name].map(part => typeof part === "string" ? part : fields[part.field] ?? "").join("");
-  const media = name === 'view' || name === 'wiki' ? '; media-src http: https: blob:' : '';
+  const media = name === 'view' || name === 'wiki' ? "; media-src http: https: blob:"+(name === 'view' ? "; frame-src 'self'" : '') : '';
   return new Response(body, { status, headers: { "Content-Type": "text/html; charset=utf-8", "Content-Security-Policy": `${csp}${media}; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'` } });
 }
-export function channelPage(request: Request, id: string, activity: number | undefined, retention: number, config: Settings, wikiEnabled = false, summaryEnabled = false): Response {
+export function channelPage(request: Request, id: string, activity: number | undefined, retention: number, config: Settings, wikiEnabled = false, summaryEnabled = false, managedExpiry?: number | null): Response {
   let response: Response;
+  const managed = managedExpiry !== undefined;
+  const expiry = managed ? managedExpiry : retention && activity !== undefined ? activity + retention : null;
+  const description = managed ? 'This channel uses administrator-managed retention. ' + (expiry ? 'Current deadline: ' + timestamp(expiry) + '.' : 'No active deadline.') + ' Administrators may retain restorable backups after deletion.' : retentionText(retention);
   if (acceptsHTML(request.headers.get("Accept") || "")) {
-    response = activity === undefined ? render("gone", { RetentionText: retentionText(retention) }, 404)
-      : render("view", { ID: id, RetentionMS: retention, ExpiresAt: retention ? timestamp(activity + retention) : "", WikiHidden: wikiEnabled ? '' : ' hidden', SummaryEnabled: summaryEnabled ? '1' : '0' }, 200, config);
+    response = activity === undefined ? render("gone", { RetentionText: description }, 404)
+      : render("view", { ID: id, RetentionMS: managed ? 0 : retention, ExpiresAt: expiry ? timestamp(expiry) : "", WikiHidden: wikiEnabled ? '' : ' hidden', SummaryEnabled: summaryEnabled ? '1' : '0' }, 200, config);
   } else if (activity === undefined) response = plain(missingText(retention) + "\n", 404);
   else {
     const nato = "Alpha Bravo Charlie Delta Echo Foxtrot Golf Hotel India Juliett Kilo Lima Mike November Oscar Papa Quebec Romeo Sierra Tango Uniform Victor Whiskey Xray Yankee Zulu".split(" ");
     const random = crypto.getRandomValues(new Uint32Array(2));
     const name = nato[random[0] % nato.length] + String(random[1] % 100).padStart(2, "0");
-    const args = [new URL(request.url).origin, id, name, retentionText(retention)];
+    const args = [new URL(request.url).origin, id, name, description];
     response = plain(privacyText(config) + "\n\n" + instructions.replace(/%\[(\d)\]s/g, (_, n) => args[Number(n) - 1]) + (wikiEnabled ? `\nLinked wikis: download and inspect ${args[0]}/static/spaces.mjs, then run\nnode spaces.mjs links 'FULL_CHAT_URL'\nnode spaces.mjs wiki 'FULL_CHAT_URL' 'Wiki title'\nLinking shares access with everyone holding either complete URL.\n` : ''));
   }
   response.headers.set("Vary", "Accept");
@@ -120,6 +123,13 @@ export function publicPage(request: Request, path: string, config: Settings, wik
     const nonce=/script-src 'nonce-([^']+)'/.exec(response.headers.get('Content-Security-Policy') || '')?.[1];
     if (!nonce) throw new Error('HTML preview nonce is missing');
     response.headers.set('Content-Security-Policy', `sandbox allow-scripts; default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'`);
+    return response;
+  }
+  if (path === '/static/markdown-file-frame') {
+    const response=render('markdown-file-frame');
+    const nonce=/script-src 'nonce-([^']+)'/.exec(response.headers.get('Content-Security-Policy') || '')?.[1];
+    if (!nonce) throw new Error('Markdown file loader nonce is missing');
+    response.headers.set('Content-Security-Policy', `sandbox allow-scripts; default-src 'none'; script-src 'nonce-${nonce}'; connect-src http: https:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'`);
     return response;
   }
   if (path === '/static/mermaid.js') return new Response(staticFiles['static/mermaid.js'], { headers: { 'Content-Type': 'text/javascript; charset=utf-8' } });

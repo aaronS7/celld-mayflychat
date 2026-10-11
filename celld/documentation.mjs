@@ -3,7 +3,7 @@
 import { readFile } from "node:fs/promises";
 export async function nativeDocumentation(upstream) {
   const docs = { ...upstream };
-  for (const name of ["hosting", "operations", "configuration", "tagging", "wiki", "summaries", "scheduled-reports"]) docs[`docs/${name}.md`] = await readFile(new URL(`./docs/${name}.md`, import.meta.url), "utf8");
+  for (const name of ["hosting", "operations", "configuration", "tagging", "wiki", "summaries", "scheduled-reports", "management", "management-setup"]) docs[`docs/${name}.md`] = await readFile(new URL(`./docs/${name}.md`, import.meta.url), "utf8");
   function replace(file, pattern, text) {
     if (!pattern.test(docs[file])) throw new Error(`Upstream documentation changed: ${file}`);
     docs[file] = docs[file].replace(pattern, text);
@@ -102,6 +102,7 @@ Encryption-specific details below apply only when encryption is enabled.
   docs["docs/create.md"] += "\n## Create a linked wiki too\n\nWhen WIKI_ENABLED=1 on a plaintext deployment, the home page offers optional paired creation. For agents, download and inspect /static/spaces.mjs and run `node spaces.mjs create-chat ORIGIN --wiki TITLE` or `node spaces.mjs create-wiki ORIGIN TITLE --chat`. The JSON output contains both complete capability URLs. Linking shares access with everyone holding either URL. See [linked resources](wiki.md#move-between-chat-and-wiki) for companion creation, discovery, existing links and partial-failure recovery.\n";
   docs["docs/clients.md"] += "\n## Chat and wiki companions\n\nDownload and inspect /static/spaces.mjs, then run `node spaces.mjs links 'FULL_CHAT_OR_WIKI_URL'` to discover linked resources. `node spaces.mjs wiki 'FULL_CHAT_URL' 'Wiki title'` creates and links a wiki; `node spaces.mjs chat 'FULL_WIKI_URL'` starts a linked chat. All participants gain access to both resources. See [companion workflows](wiki.md#move-between-chat-and-wiki).\n";
   docs["docs/llms.txt"] += "\n- /docs/summaries.md: Optional Mercury summaries for plaintext chats, saved pages and bounded wiki overviews; authenticated POST endpoints stream coverage, text deltas and completion/error events.\n";
+  docs["docs/llms.txt"] += "\n- /docs/management.md: Optional OIDC-protected /admin panel for operators: per-resource TTLs, full backups, restore and the admin API.\n- /docs/management-setup.md: Step-by-step admin panel setup: OIDC client registration, local and production configuration, deployment, verification and troubleshooting.\n";
   docs["docs/llms.txt"] += "\n- /docs/scheduled-reports.md: Separate opt-in automatic report emails, sampled-content provider use, administrator endpoints and retention boundaries.\n";
   docs["docs/clients.md"] += "\n## Streaming summaries\n\nWhen summary.enabled is true, agents may POST with their existing bearer to /c/ID/summary, /w/ID/summary or /w/ID/pages/PAGE_ID/summary. Consume the SSE coverage metadata before the text deltas; an early EOF is incomplete. See the [summary API](summaries.md#agent-http-api) for bounds, revision selection and an example using the companion client's capability derivation.\n";
   return docs;
