@@ -95,7 +95,7 @@ function rewriteWikiLinks(source: string, destination: (kind: 'page' | 'attachme
     const mark = /^ {0,3}(`{3,}|~{3,})/.exec(content);
     if (fence) { if (mark && mark[1][0] === fence[0] && mark[1].length >= fence.length && /^ {0,3}(?:`+|~+)\s*$/.test(content)) fence = ''; result += line; continue; }
     if (mark && !inline) { fence = mark[1]; result += line; continue; }
-    const autolinkLine = /^ {0,3}<(?:page|attachment):[a-f0-9-]{36}>/.test(content);
+    const autolinkLine = /^ {0,3}<(?:page:[a-f0-9-]{36}(?:#attachment-[a-f0-9-]{36})?|attachment:[a-f0-9-]{36})>/.test(content);
     if (!inline && (/^(?: {4}|\t)/.test(content) || /^ {0,3}</.test(content) && !autolinkLine)) {
       if (/^ {0,3}<!--/.test(content)) html = '-->';
       else { const open = /^ {0,3}<(script|style|pre|textarea)\b/i.exec(content); if (open) html = '</' + open[1].toLowerCase() + '>';
@@ -117,16 +117,19 @@ function rewriteWikiLinks(source: string, destination: (kind: 'page' | 'attachme
         result += run; i += run.length; continue;
       }
       if (!inline) {
-        const auto = line[i] === '<' && /^<(page|attachment):([a-f0-9-]{36})>/.exec(line.slice(i));
+        const auto = line[i] === '<' && /^<(?:page:([a-f0-9-]{36})(?:#attachment-([a-f0-9-]{36}))?|attachment:([a-f0-9-]{36}))>/.exec(line.slice(i));
         if (auto) {
-          const target = destination(auto[1] as 'page' | 'attachment', auto[2]);
-          result += target ? '[' + auto[1] + ':' + auto[2] + '](' + target + ')' : auto[0]; i += auto[0].length; continue;
+          const target = destination(auto[2] || auto[3] ? 'attachment' : 'page', auto[2] || auto[3] || auto[1]);
+          result += target ? '[' + auto[0].slice(1,-1) + '](' + target + ')' : auto[0]; i += auto[0].length; continue;
         }
         if (line[i] === '[') brackets++;
-        const match = line[i] === ']' && /^(\]\(\s*<?|\]:\s*<?)(page|attachment):([a-f0-9-]{36})(?=>?(?:\s|\)|$))/.exec(source.slice(row.index + i));
+        const match = line[i] === ']' && /^(\]\(\s*<?|\]:\s*<?)(?:page:([a-f0-9-]{36})(?:#attachment-([a-f0-9-]{36}))?|attachment:([a-f0-9-]{36})|#attachment-([a-f0-9-]{36}))(?=>?(?:\s|\)|$))/.exec(source.slice(row.index + i));
         if (match && brackets) {
           brackets--;
-          const target = destination(match[2] as 'page' | 'attachment', match[3]);
+          // Attachment jumps export as links to the uploaded bytes, including jumps
+          // from another page. Markdown files have no app-owned attachment cards.
+          const file = match[3] || match[4] || match[5];
+          const target = destination(file ? 'attachment' : 'page', file || match[2]);
           result += target ? match[1] + target : match[0]; i += match[0].length; skipTo = row.index + i; continue;
         }
         if (line[i] === ']') brackets = Math.max(0, brackets - 1);

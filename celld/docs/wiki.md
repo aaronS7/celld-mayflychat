@@ -140,6 +140,26 @@ and other files use `[Filename](attachment:ATTACHMENT_ID)`. Agents receive the
 appropriate Markdown from `node wiki.mjs upload 'FULL_WIKI_URL' FILE`.
 
 Every attachment card has **Download**, which retains the uploaded filename.
+Every uploaded attachment also has **Copy link**, which copies a link to its card
+on the saved wiki page. Opening it scrolls to and focuses the attachment; downloads
+and previews keep their existing controls.
+
+Use `[Screenshot](#attachment-ATTACHMENT_ID)` in the same page's Markdown, or
+`[Screenshot](page:PAGE_ID#attachment-ATTACHMENT_ID)` from another wiki page.
+The attachment ID comes from the upload response or an existing
+`attachment:ATTACHMENT_ID` destination. Repeated references to an upload target
+its first occurrence in the main page, excluding nested Markdown previews. IDs
+survive page edits and filename changes.
+
+Agents can construct the exact browser link as
+`/w/WIKI_ID?page=PAGE_ID#KEY/attachment-ATTACHMENT_ID` (relative to the site origin).
+Keep the complete key before `/attachment-`; a bare `#attachment-ID` is Markdown
+syntax inside the wiki, not a complete shareable browser URL. Add
+`&revision=REVISION` before `#` to target a saved revision. The standalone client
+accepts these attachment URLs wherever it accepts a wiki URL. Exported Markdown rewrites
+attachment jumps to relative links to the uploaded files, including jumps from
+other pages; single-page exports include those files.
+
 Downloads save the original file, including MP4s, PDFs and archives, so you can
 move it into a folder or attach it to a GitHub pull request.
 PNG, JPEG, GIF, WebP and SVG images preview automatically. SVG markup is loaded
@@ -518,7 +538,8 @@ The link is `/w/ID#BASE64URL(K)`. The fragment is never sent in an HTTP request.
 Creation sends `auth_hash = base64url(SHA256(UTF8(bearer)))`; subsequent requests
 send `Authorization: Bearer BEARER`. The wiki and chat key domains differ.
 Keep the key fragment during navigation; section and revision references use
-query parameters. Server-returned citation URLs intentionally contain no key.
+query parameters. Attachment targets append `/attachment-ATTACHMENT_ID` to the
+key fragment. Server-returned citation URLs intentionally contain no key.
 
 ## HTTP API
 
