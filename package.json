@@ -43,7 +43,7 @@
     "test:ingress": "node celld/ingress.test.mjs",
     "test:moderation": "node --test --test-concurrency=1 celld/moderation.test.mjs celld/moderation-runtime.test.mjs",
     "test:reports": "node --test celld/reports.test.mjs celld/reporting-coverage.test.mjs",
-    "test:management": "node --test --test-concurrency=1 celld/management-storage.test.mjs celld/management.test.mjs celld/management-auth.test.mjs celld/management-catalog.test.mjs celld/management-cancel.test.mjs",
+    "test:management": "node --test --test-concurrency=1 celld/management-storage.test.mjs celld/management-disclosure.test.mjs celld/management.test.mjs celld/management-auth.test.mjs celld/management-catalog.test.mjs celld/management-cancel.test.mjs",
     "test:fleet:config": "node --test celld/fleet-config.test.mjs"
   },
   "dependencies": {

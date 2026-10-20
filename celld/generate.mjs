@@ -59,7 +59,7 @@ for (const name of ["index", "view", "gone", "doc", "wiki", "mermaid-frame", "ht
     source = source.replace('<p id="status"', '<p id="privacy" class="meta">{{.PrivacyText}}</p>\n<p id="status"');
     if (name === "view") source = source.replace('<div id="nokey"', '<p id="privacy" class="meta">{{.PrivacyText}}</p>\n<div id="nokey"');
   }
-  const allowed = new Set(["CSPNonce", "Channel.ID", "RetentionMS", "ExpiresAt", "ExpiresAtJSON", "ExpiresHidden", "RetentionText", "Title", "Source", "SettingsJSON", "PrivacyText", "WikiHidden", "WikiID", "WikiLayout", "SummaryEnabled"]);
+  const allowed = new Set(["CSPNonce", "Channel.ID", "RetentionMS", "ExpiresAt", "ExpiresAtJSON", "ExpiresHidden", "RetentionText", "Title", "Source", "SettingsJSON", "PrivacyText", "WikiHidden", "WikiID", "WikiLayout", "WikiCreationRetention", "SummaryEnabled"]);
   // Split before injecting scripts: braces in trusted JavaScript are literal.
   const parts = [];
   let start = 0;

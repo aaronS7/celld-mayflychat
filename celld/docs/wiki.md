@@ -3,7 +3,11 @@
 Mayfly's native celld service can host persistent Markdown wikis alongside its
 transient chats. Each wiki owns a SQLite Durable Object containing its pages,
 revision snapshots, section search index, navigation and discussion. Uploaded
-attachments use the `WIKI_FILES` R2 binding. Wikis do not inherit chat idle expiry.
+attachments use the `WIKI_FILES` R2 binding. Wikis do not inherit chat idle expiry. Administrator-managed wikis can have their own
+idle/age deadlines and restorable backups. Authenticated pages show the current
+deadline (updated on Refresh) and explain that backups can survive deletion and
+restore access through original links. The root metadata response exposes
+`retention: {expires_at, paused}` for managed wikis and `retention: null` otherwise.
 
 ## Enable the feature
 
@@ -163,7 +167,7 @@ as an image with an opaque origin; it is never inserted into the page as markup.
 Click an image or choose **Enlarge** to open a viewer that fills most of the
 window. Use **Zoom in**, **Zoom out**, the mouse wheel, **Fit**, or **100%** to
 inspect it; drag or scroll to pan a zoomed image. Close with **Close**, Escape,
-or a click outside the viewer. The same controls work for loaded chat images.
+or a click outside the viewer. Loaded image attachment cards in chats provide the same controls.
 MP4, WebM and Ogg video
 cards offer **Load video**, then native play/pause, seeking, volume and
 **Fullscreen** controls. Playback depends on the browser's codec support; a

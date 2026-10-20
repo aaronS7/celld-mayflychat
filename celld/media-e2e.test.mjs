@@ -77,7 +77,7 @@ const rawCDP=cdp;cdp=async(method,params,session)=>{let timer;try{return await P
     const opener=card(name)+'.querySelector("'+(keyboard?'.media-enlarge':'.media-image-trigger')+'")';
     await until(()=>evaluate(tab,opener+'&&!'+opener+'.disabled'),'image viewer control ready '+name);
     await evaluate(tab,'window.viewerReturnTarget='+opener+';window.viewerPreviewSource='+card(name)+'.querySelector(".media-preview img").src');
-    if(keyboard){await evaluate(tab,'viewerReturnTarget.scrollIntoView({block:"center"});viewerReturnTarget.focus()');await key('Enter','Enter',13);}
+    if(keyboard){await cdp('Target.activateTarget',{targetId:tab.targetId});await evaluate(tab,'viewerReturnTarget.scrollIntoView({block:"center"});viewerReturnTarget.focus()');await until(()=>evaluate(tab,'document.activeElement===viewerReturnTarget'),'image control focused '+name);await key('Enter','Enter',13);}
     else await click(opener);
     await until(()=>evaluate(tab,'(()=>{const d=document.querySelector(".media-image-dialog"),i=d?.querySelector(".media-image-full");return d?.open&&i?.complete&&i.getBoundingClientRect().width>0})()'),'image viewer opened '+name).catch(async error=>{throw new Error(error.message+' '+JSON.stringify(await evaluate(tab,'({active:document.activeElement?.outerHTML,dialogs:[...document.querySelectorAll(".media-image-dialog")].map(d=>d.outerHTML),errors:mediaErrors,violations:mediaViolations})')));});
     assert.equal(await evaluate(tab,'document.querySelector(".media-image-full").src'),await evaluate(tab,'viewerPreviewSource'),'viewer reuses the loaded preview source');
