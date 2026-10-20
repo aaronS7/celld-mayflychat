@@ -160,6 +160,32 @@ read-back verification. It needs GetObject and PutObject under `mayfly/v1/`;
 it does not need permission to delete completed archives. Keep these credentials
 available for pending jobs even when management is disabled.
 
+## Safely disabling management
+
+`MANAGEMENT_ENABLED=0` hides `/admin` and stops new registrations; it does not
+pause existing resource policies or abandon queued operations. Before disabling:
+
+1. Keep management enabled, its Durable Object bindings, and its existing archive
+   binding/credentials available. Sign in to `/admin`.
+2. Page through the resource inventory (including every resource kind/state).
+   Pause retention on each active resource. With the API, read its current policy
+   version and PUT the same policy with `paused:true` to its `/policy` endpoint.
+3. Cancel pending archive/restore jobs you do not want to finish. Canceling a TTL
+   archive-delete pauses retention. If deletion has started, it cannot be canceled:
+   let it complete or repair storage and retry until it settles. A restore canceled
+   after writing content must finish its rollback before it is settled. Pause
+   retention on resources returned to active by cancellation. An overdue policy
+   can already have started deletion; pausing cannot reverse deletion in progress.
+4. Refresh the inventory and verify every resource is either active with paused
+   retention or deleted, with no pending operations, errors or retries. Then deploy
+   `MANAGEMENT_ENABLED=0`, preserving the Management and archive bindings and
+   credentials. Completed backups remain subject to archive-storage retention.
+
+If management was already disabled while jobs were pending, restore the original
+bindings and archive credentials and re-enable `MANAGEMENT_ENABLED=1`. Sign in,
+pause policies, and cancel or retry jobs using the steps above. Removing storage
+credentials is not a way to stop a deletion or cancel a restore.
+
 ## Retention behavior
 
 A resource expires at the earlier of `created_at + age_seconds` and

@@ -159,6 +159,7 @@ export class Chat extends DurableObject<Env> {
     // never forwards arbitrary paths or client-supplied internal headers.
     if (url.pathname === "/_create" && request.method === "POST") {
       const { id, auth_hash, encryption, creation_id } = await request.json<{ id: string; auth_hash: string; encryption: string; creation_id?: string }>();
+      if (typeof id !== "string" || !canonicalID(id)) throw new HTTPError(400, "Invalid internal chat ID");
       // A replay after deletion/expiry acknowledges the original creation without
       // resurrecting the chat. The receipt contains no credential or message.
       if (creation_id && this.sql.exec("SELECT 1 FROM sqlite_master WHERE type='table' AND name='creation_receipts'").toArray().length && this.sql.exec('SELECT 1 FROM creation_receipts WHERE id=?', creation_id).toArray().length) return new Response(null, { status: 204 });
