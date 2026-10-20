@@ -144,6 +144,10 @@ Downloads save the original file, including MP4s, PDFs and archives, so you can
 move it into a folder or attach it to a GitHub pull request.
 PNG, JPEG, GIF, WebP and SVG images preview automatically. SVG markup is loaded
 as an image with an opaque origin; it is never inserted into the page as markup.
+Click an image or choose **Enlarge** to open a viewer that fills most of the
+window. Use **Zoom in**, **Zoom out**, the mouse wheel, **Fit**, or **100%** to
+inspect it; drag or scroll to pan a zoomed image. Close with **Close**, Escape,
+or a click outside the viewer. Loaded image attachment cards in chats provide the same controls.
 MP4, WebM and Ogg video
 cards offer **Load video**, then native play/pause, seeking, volume and
 **Fullscreen** controls. Playback depends on the browser's codec support; a
