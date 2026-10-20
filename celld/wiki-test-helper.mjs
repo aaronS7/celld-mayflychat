@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, execFile } from 'node:child_process';
 import { createHash, hkdfSync, randomBytes } from 'node:crypto';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, writeFile, symlink } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { createServer as tcpServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -20,6 +20,9 @@ export function capability() {
 export async function wikiHarness(t, initial={}) {
   const directory=await mkdtemp(join(tmpdir(),'mayfly-wiki-test-'));
   await cp(new URL('./native/',import.meta.url),join(directory,'celld/native'),{recursive:true});
+  await symlink(new URL('../node_modules',import.meta.url).pathname,join(directory,'node_modules'));
+  if (initial.configureSource) await initial.configureSource(directory);
+  initial={...initial}; delete initial.configureSource;
   const config=JSON.parse((await readFile(new URL('../wrangler.jsonc',import.meta.url),'utf8')).replace(/^\s*\/\/.*$/gm,''));
   await writeFile(join(directory,'wrangler.json'),JSON.stringify(config));
   const providerState={status:200,delay:0,malformed:false,requests:[],scores:null};
@@ -43,6 +46,7 @@ export async function wikiHarness(t, initial={}) {
   async function start(vars=initial){
     await stop();output='';
     const resolved={ENCRYPTION_ENABLED:'0',WIKI_ENABLED:'1',JEV_WIKI_SEARCH_ENABLED:'0',JEV_ENABLED:'0',JEV_TAGGING_ENABLED:'0',...vars};
+    if(resolved.MANAGEMENT_ORIGIN==='auto')resolved.MANAGEMENT_ORIGIN=base;
     await writeFile(join(directory,'.dev.vars'),Object.entries(resolved).map(([k,v])=>`${k}=${v}`).join('\n')+'\n');
     child=spawn('celld',['dev',directory,'--port',String(port),'--no-watch','--logs'],{stdio:['ignore','pipe','pipe']});
     child.stdout.on('data',part=>output+=part);child.stderr.on('data',part=>output+=part);

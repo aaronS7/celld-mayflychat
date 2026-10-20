@@ -8,7 +8,7 @@ const exists = (sql: SqlStorage) => sql.exec("SELECT 1 FROM sqlite_master WHERE 
 export function clearSpaceLinks(sql: SqlStorage): void {
   if (exists(sql)) sql.exec('DELETE FROM linked_spaces');
 }
-export async function spaceLinks(request: Request, path: string, kind: 'chat' | 'wiki', sql: SqlStorage, authorize: () => void | Promise<void>): Promise<Response> {
+export async function spaceLinks(request: Request, path: string, kind: 'chat' | 'wiki', sql: SqlStorage, authorize: () => void | Promise<void>, writable: () => void = () => {}): Promise<Response> {
   const match = /^\/links(?:\/([^/]+))?$/.exec(path);
   if (!match) throw new HTTPError(404, 'No such link route');
   const id = match[1];
@@ -19,6 +19,7 @@ export async function spaceLinks(request: Request, path: string, kind: 'chat' | 
   }
   if (id && request.method === 'DELETE') {
     await authorize();
+    writable();
     if (exists(sql)) sql.exec('DELETE FROM linked_spaces WHERE id=?', id);
     return new Response(null, { status: 204 });
   }
@@ -32,6 +33,7 @@ export async function spaceLinks(request: Request, path: string, kind: 'chat' | 
   }
   // The body read can overlap deletion, expiry, or a new chat generation.
   await authorize();
+  writable();
   sql.exec('CREATE TABLE IF NOT EXISTS linked_spaces(id TEXT PRIMARY KEY,kind TEXT NOT NULL,title TEXT NOT NULL,nonce TEXT NOT NULL,ct TEXT NOT NULL,created_at TEXT NOT NULL)');
   const old = sql.exec<Link>('SELECT * FROM linked_spaces WHERE id=?', id).toArray()[0];
   if (old) return json(old); // Retrying a reciprocal write must be idempotent.

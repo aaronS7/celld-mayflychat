@@ -10,9 +10,13 @@ import { wikiRoute, type WikiEnv } from './wiki';
 import { wikiSettings } from './wiki-core';
 import { clearSpaceLinks, spaceLinks } from './space-links';
 import { SummaryLimiter, summaryClip, summaryLimits, summaryRequest, summarySettings, streamSummary, type SummarySource } from './summaries';
+import { deadlines } from './management-core';
+import { ResourceLifecycle } from './management-lifecycle';
+import { managementRoute, type ManagementEnv } from './management';
+export { Management } from './management';
 export { Wiki, WikiCreationGate } from './wiki';
 
-interface Env extends SettingsEnv, MayflyReportEnv, WikiEnv {
+interface Env extends SettingsEnv, MayflyReportEnv, WikiEnv, ManagementEnv {
   CHATS: DurableObjectNamespace<Chat>;
   CREATION: DurableObjectNamespace<CreationGate>;
   RETENTION_SECONDS?: string;
@@ -21,7 +25,7 @@ interface Env extends SettingsEnv, MayflyReportEnv, WikiEnv {
 type Metadata = { auth: ArrayBuffer; head: number; bytes: number; activity: number; encrypted: number; generation: string };
 type EventRow = { seq: number; ts: number; src: string; nonce: ArrayBuffer; ct: ArrayBuffer; message: string | null; tags: string | null };
 type Envelope = { seq: number; ts: string; src: string; nonce: string } & ({ ct: string } | { from: string; text: string; tags?: MessageTag[] });
-type Page = { last: number; more: boolean; events: Envelope[] };
+type Page = { last: number; more: boolean; events: Envelope[]; retention?: { expires_at: number | null } };
 
 // One object owns one channel. Its message format is fixed at creation.
 export class Chat extends DurableObject<Env> {
@@ -29,11 +33,13 @@ export class Chat extends DurableObject<Env> {
   private initialized: boolean;
   private waiters = new Set<() => void>();
   private retention: number;
+  private lifecycle: ResourceLifecycle;
   private summaries = new SummaryLimiter();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.sql = ctx.storage.sql;
+    this.lifecycle = new ResourceLifecycle(ctx, env, 'chat', {busy: () => false, changed: () => this.notify()});
     this.retention = retentionMS(env);
     // A probe of an unknown channel must not write a database for that ID.
     this.initialized = this.sql.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='channel'").toArray().length > 0;
@@ -52,6 +58,7 @@ export class Chat extends DurableObject<Env> {
     return this.sql.exec<Metadata>("SELECT auth, head, bytes, activity, encrypted, generation FROM channel WHERE singleton=1").toArray()[0];
   }
   private require(): Metadata {
+    this.lifecycle.assertAvailable();
     const metadata = this.metadata();
     if (!metadata) throw new HTTPError(404, missingText(this.retention));
     return metadata;
@@ -74,6 +81,7 @@ export class Chat extends DurableObject<Env> {
     this.notify();
   }
   private async expire(): Promise<void> {
+    if (this.lifecycle.record()) { this.lifecycle.tick(); return; }
     const metadata = this.metadata();
     if (metadata && this.retention && Date.now() > metadata.activity + this.retention) {
       this.erase();
@@ -82,17 +90,20 @@ export class Chat extends DurableObject<Env> {
     }
   }
   private schedule(): Promise<void> {
+    if (this.lifecycle.record()) return this.lifecycle.flush();
     const metadata = this.metadata();
     return metadata && this.retention ? this.ctx.storage.setAlarm(metadata.activity + this.retention + 1) : this.ctx.storage.deleteAlarm();
   }
   async alarm(): Promise<void> {
+    if (this.lifecycle.record()) { await this.lifecycle.alarm(); return; }
     await this.expire();
     // An earlier alarm can race with an activity refresh. Always recheck SQL.
     await this.schedule();
   }
   private page(since: bigint): Page {
     const metadata = this.require();
-    const page: Page = { last: metadata.head, more: false, events: [] };
+    const managed = this.lifecycle.record();
+    const page: Page = { last: metadata.head, more: false, events: [], ...(managed ? {retention:{expires_at:deadlines(managed).expires_at}} : {}) };
     if (since >= BigInt(metadata.head)) return page;
     // This block is synchronous: metadata and events share one input turn.
     const rows = this.sql.exec<EventRow>("SELECT seq, ts, src, nonce, ct, message, tags FROM events WHERE seq>? ORDER BY seq LIMIT ?", Number(since), limits.page).toArray();
@@ -138,15 +149,17 @@ export class Chat extends DurableObject<Env> {
     try { return await this.handle(request); } catch (error) {
       if (error instanceof ModerationUnavailable) return json({ error: error.message, code: "moderation_unavailable", posted: false }, 503);
       return failure(error);
-    }
+    } finally { await this.lifecycle.flush(); }
   }
   private async handle(request: Request): Promise<Response> {
-    await this.expire();
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/_management')) return this.lifecycle.handle(request);
+    await this.expire();
     // Only the creation gate constructs this private request; the public router
     // never forwards arbitrary paths or client-supplied internal headers.
     if (url.pathname === "/_create" && request.method === "POST") {
-      const { auth_hash, encryption, creation_id } = await request.json<{ auth_hash: string; encryption: string; creation_id?: string }>();
+      const { id, auth_hash, encryption, creation_id } = await request.json<{ id: string; auth_hash: string; encryption: string; creation_id?: string }>();
+      if (typeof id !== "string" || !canonicalID(id)) throw new HTTPError(400, "Invalid internal chat ID");
       // A replay after deletion/expiry acknowledges the original creation without
       // resurrecting the chat. The receipt contains no credential or message.
       if (creation_id && this.sql.exec("SELECT 1 FROM sqlite_master WHERE type='table' AND name='creation_receipts'").toArray().length && this.sql.exec('SELECT 1 FROM creation_receipts WHERE id=?', creation_id).toArray().length) return new Response(null, { status: 204 });
@@ -157,6 +170,7 @@ export class Chat extends DurableObject<Env> {
         if (creation_id && existing.generation === creation_id) return new Response(null, { status: 204 });
         throw new HTTPError(409, "a channel with this id exists");
       }
+      if (this.lifecycle.record()) throw new HTTPError(410, "This managed ID is reserved. Restore it through management or create a new capability.");
       const auth = unb64(auth_hash);
       if (!auth || auth.length !== 32) throw new Error("Invalid internal create");
       this.ctx.storage.transactionSync(() => {
@@ -165,6 +179,7 @@ export class Chat extends DurableObject<Env> {
         this.sql.exec('CREATE TABLE IF NOT EXISTS creation_receipts (id TEXT PRIMARY KEY)');
         this.sql.exec("INSERT INTO channel (singleton, auth, head, bytes, activity, encrypted, generation) VALUES (1, ?, -1, 0, ?, ?, ?)", auth, Math.floor(Date.now() / 1000) * 1000, Number(config.encryption), creation_id ?? crypto.randomUUID());
         if (creation_id) this.sql.exec('INSERT INTO creation_receipts VALUES (?)', creation_id);
+        this.lifecycle.create(id);
       });
       this.initialized = true;
       await this.schedule();
@@ -173,7 +188,7 @@ export class Chat extends DurableObject<Env> {
     if (url.pathname === "/_report" && request.method === "GET") {
       const metadata = this.metadata();
       const empty = { unavailable: true, encrypted: false, count: 0, messages: [] };
-      if (!metadata || metadata.generation !== url.searchParams.get('generation')) return json(empty);
+      if (!metadata || this.lifecycle.record() && this.lifecycle.record()!.state !== 'active' || metadata.generation !== url.searchParams.get('generation')) return json(empty);
       const from = Number(url.searchParams.get('from')), to = Number(url.searchParams.get('to'));
       if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to) || from < 0 || to <= from) throw new HTTPError(400, 'Invalid report interval');
       const count = this.sql.exec<{ n: number }>('SELECT COUNT(*) n FROM events WHERE ts>=? AND ts<?', Math.floor(from / 1000) * 1000, to).toArray()[0].n;
@@ -188,8 +203,10 @@ export class Chat extends DurableObject<Env> {
     const path = match[2] || "";
     const get = request.method === "GET" || request.method === "HEAD";
     if (!path && get) {
-      const metadata = this.metadata();
-      return channelPage(request, decodeURIComponent(match[1]), metadata?.activity, this.retention, settings(this.env, metadata ? Boolean(metadata.encrypted) : undefined), wikiSettings(this.env).enabled && !metadata?.encrypted, summarySettings(this.env, !!metadata?.encrypted).enabled);
+      const managed = this.lifecycle.record();
+      // Archive/restore work is temporary: render the page, whose reads retry the 423 until it resumes.
+      const metadata = !managed || ['active','archiving','restoring'].includes(managed.state) ? this.metadata() : undefined;
+      return channelPage(request, decodeURIComponent(match[1]), metadata?.activity, this.retention, settings(this.env, metadata ? Boolean(metadata.encrypted) : undefined), wikiSettings(this.env).enabled && !metadata?.encrypted, summarySettings(this.env, !!metadata?.encrypted).enabled, managed ? deadlines(managed).expires_at : undefined);
     }
     if (path === '/summary' && request.method === 'POST') {
       if (!summarySettings(this.env).enabled) throw new HTTPError(404, messages.route);
@@ -199,7 +216,7 @@ export class Chat extends DurableObject<Env> {
       await summaryRequest(request);
       const check = () => {
         const current = this.authorize(hash);
-        if (current.generation !== original.generation || this.retention && Date.now() > current.activity + this.retention) throw new HTTPError(404, 'Chat is no longer available.');
+        if (current.generation !== original.generation || !this.lifecycle.record() && this.retention && Date.now() > current.activity + this.retention) throw new HTTPError(404, 'Chat is no longer available.');
       };
       check(); const metadata = this.require(), sources: SummarySource[] = [];
       for (const row of this.sql.exec<{seq:number;message:string;ts:number}>('SELECT seq,message,ts FROM events WHERE message IS NOT NULL ORDER BY seq DESC LIMIT ?', summaryLimits.chatMessages).toArray()) {
@@ -217,7 +234,7 @@ export class Chat extends DurableObject<Env> {
         await this.expire();
         const current = this.authorize(hash);
         if (current.generation !== original.generation) throw new HTTPError(412, 'Channel was replaced. Reload before linking.', 'channel_changed');
-      });
+      }, () => this.lifecycle.assertAvailable());
     }
     if (path !== "/events" && !(path === "/config" && get) && !(path === "" && request.method === "DELETE") || path === "/events" && !get && request.method !== "POST") {
       this.require();
@@ -229,6 +246,7 @@ export class Chat extends DurableObject<Env> {
     const original = this.authorize(hash);
     if (path === "/config") return json({ ...settings(this.env, Boolean(original.encrypted)), summary: summarySettings(this.env, !!original.encrypted) });
     if (request.method === "DELETE") {
+      if (this.lifecycle.record()) { await this.lifecycle.removeByCapability(); return new Response(null,{status:204}); }
       this.erase();
       await this.ctx.storage.deleteAlarm();
       return new Response(null, { status: 204 });
@@ -279,6 +297,7 @@ export class Chat extends DurableObject<Env> {
       const now = Math.floor(Date.now() / 1000) * 1000;
       this.sql.exec("INSERT INTO events (seq, ts, src, nonce, ct, message, tags) VALUES (?, ?, ?, ?, ?, ?, ?)", seq, now, request.headers.get("X-Mayfly-Source") || "", nonce, ct, message ? JSON.stringify(message) : null, tags.length ? JSON.stringify(tags) : null);
       this.sql.exec("UPDATE channel SET head=?, bytes=bytes+?, activity=? WHERE singleton=1", seq, bytes, now);
+      this.lifecycle.activity();
     });
     if (conflict) return json({ error: "conflict", posted: false, ...conflict }, 409);
     // Persist the expiry before the handler can acknowledge the write. celld's
@@ -338,7 +357,7 @@ export class CreationGate extends DurableObject<Env> {
     const rows = this.reports.store.rows<{ event_id: string; chat_id: string; auth_hash: string; encryption: string }>('SELECT * FROM report_chats WHERE recorded=0 ORDER BY created_ms LIMIT 10');
     for (const row of rows) {
       const response = await this.env.CHATS.get(this.env.CHATS.idFromName(row.chat_id)).fetch(new Request('https://mayfly.internal/_create', {
-        method: 'POST', body: JSON.stringify({ auth_hash: row.auth_hash, encryption: row.encryption, creation_id: row.event_id }),
+        method: 'POST', body: JSON.stringify({ id: row.chat_id, auth_hash: row.auth_hash, encryption: row.encryption, creation_id: row.event_id }),
       }));
       if (response.status === 204) this.reports.store.run('UPDATE report_chats SET recorded=1,auth_hash=NULL WHERE event_id=?', row.event_id);
       else if ([409,412].includes(response.status)) this.reports.store.run('DELETE FROM report_chats WHERE event_id=?', row.event_id);
@@ -386,7 +405,7 @@ export class CreationGate extends DurableObject<Env> {
     // Persist either the creation journal or its tracking-gap marker before a
     // different object can acknowledge a creation outside that journal.
     await this.ctx.storage.sync();
-    const response = await chat.fetch(new Request("https://mayfly.internal/_create", { method: "POST", body: JSON.stringify({ auth_hash, encryption, creation_id }), redirect: "manual" }));
+    const response = await chat.fetch(new Request("https://mayfly.internal/_create", { method: "POST", body: JSON.stringify({ id, auth_hash, encryption, creation_id }), redirect: "manual" }));
     if (response.status !== 204) {
       if (creation_id && [409,412].includes(response.status)) this.reports.store.run('DELETE FROM report_chats WHERE event_id=?', creation_id);
       return response;
@@ -430,6 +449,8 @@ function redirect(request: Request, location: string): Response {
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const config = settings(env);
+  const management = await managementRoute(request, env);
+  if (management) return management;
   if (['/api/reports', '/api/reports/start', '/api/reports/test-email'].includes(url.pathname)) {
     const expected = env.REPORT_ADMIN_TOKEN;
     const actual = request.headers.get('Authorization')?.replace(/^Bearer /, '');

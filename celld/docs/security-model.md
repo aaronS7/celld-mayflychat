@@ -6,8 +6,35 @@ A full `/c/ID#key` URL grants read, write, and delete access. Creators generate 
 random 32-byte key locally and derive the public ID and a separate bearer with
 HKDF-SHA256. The server stores the bearer's SHA-256 hash and verifies the bearer
 on event, configuration, and delete requests. It does not store the fragment key.
-There are no accounts, channel listings, participant roles, or individual
-revocations. Anyone with the URL can impersonate a sender name or delete the chat.
+Participant access has no accounts, channel listings, participant roles, or
+individual revocations. Anyone with the URL can impersonate a sender name or delete the chat.
+
+## Optional administrator management
+
+`MANAGEMENT_ENABLED=1` adds OIDC-authenticated administrators as a trusted party
+for newly created chats and wikis. Administrators can change retention, archive,
+delete, download backups and restore managed resources without their capability
+links. These privileges require an allowlisted OIDC subject; admin writes also
+require a session-bound CSRF token and the configured origin.
+
+Backups contain full wiki history, discussion and uploaded files, and full chat
+history. Wiki and plaintext-chat contents are readable to administrators and
+archive-storage operators. Encrypted chats remain ciphertext; archives do not
+supply the fragment key or let administrators decrypt correctly encrypted messages.
+Archive storage has its own access controls and retention policy.
+
+Capability deletion removes the live resource but does not remove earlier
+administrator archives. Restoring an archive restores its original authorization,
+so old complete links work again. Deletion is not a guarantee of erasure or
+permanent revocation of previously shared links. Administrators can also set wiki
+idle/age deadlines independently of chat retention. Managed wiki pages display
+the deadline and backup notice after authentication; the delete dialog also explains
+backup restoration.
+
+Disabling the admin UI does not stop saved retention policies or pending jobs.
+Pause policies and settle or cancel jobs before disabling it, keep archive storage
+and credentials available, and re-enable management to control existing jobs.
+See [management operations](management.md#safely-disabling-management).
 
 ## Plaintext mode (default)
 

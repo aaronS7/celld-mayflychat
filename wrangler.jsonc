@@ -7,18 +7,24 @@
       { "name": "CHATS", "class_name": "Chat" },
       { "name": "CREATION", "class_name": "CreationGate" },
       { "name": "WIKIS", "class_name": "Wiki" },
-      { "name": "WIKI_CREATION", "class_name": "WikiCreationGate" }
+      { "name": "WIKI_CREATION", "class_name": "WikiCreationGate" },
+      { "name": "MANAGEMENT", "class_name": "Management" }
     ]
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["Chat", "CreationGate"] },
-    { "tag": "v2-wiki", "new_sqlite_classes": ["Wiki", "WikiCreationGate"] }
+    { "tag": "v2-wiki", "new_sqlite_classes": ["Wiki", "WikiCreationGate"] },
+    { "tag": "v3-management", "new_sqlite_classes": ["Management"] }
   ],
-  "r2_buckets": [{ "binding": "WIKI_FILES", "bucket_name": "mayfly-wiki-files" }],
+  "r2_buckets": [
+    { "binding": "WIKI_FILES", "bucket_name": "mayfly-wiki-files" },
+    { "binding": "ARCHIVES", "bucket_name": "mayfly-archives" }
+  ],
   "triggers": { "crons": ["0 */12 * * *"] },
   "vars": {
     // Set to "1" only behind a trusted proxy that appends/replaces client IPs.
     "TRUST_PROXY": "0",
+    "MANAGEMENT_ENABLED": "0",
     // Plaintext messages by default. 1 enables end-to-end encryption and disables Jev.
     "ENCRYPTION_ENABLED": "0",
     "JEV_ENABLED": "0",

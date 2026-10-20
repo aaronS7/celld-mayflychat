@@ -6,9 +6,11 @@ import { attachmentType, bodyJSON, byteLength, commentAnchor, id, label, matchQu
 import { rankPassages, relevanceVersion, type SearchHit } from './wiki-search';
 import { clearSpaceLinks, spaceLinks } from './space-links';
 import { SummaryLimiter, summaryClip, summaryLimits, summaryRequest, summarySettings, streamSummary, type SummaryEnv } from './summaries';
+import { deadlines } from './management-core';
+import { ResourceLifecycle, type LifecycleEnv } from './management-lifecycle';
 import { WikiExporter } from './wiki-export';
 
-export interface WikiEnv extends WikiSettingsEnv, SummaryEnv {
+export interface WikiEnv extends WikiSettingsEnv, SummaryEnv, LifecycleEnv {
   WIKIS: DurableObjectNamespace<Wiki>;
   WIKI_CREATION: DurableObjectNamespace<WikiCreationGate>;
   WIKI_FILES?: R2Bucket;
@@ -43,13 +45,16 @@ export class Wiki extends DurableObject<WikiEnv> {
   private uploads = 0;
   private summaries = new SummaryLimiter();
   private exporter: WikiExporter;
+  private lifecycle: ResourceLifecycle;
   constructor(ctx: DurableObjectState, env: WikiEnv) {
     super(ctx, env);
     this.sql = ctx.storage.sql;
+    this.lifecycle = new ResourceLifecycle(ctx, env, 'wiki', {busy: () => this.uploads > 0, changed: () => this.cache.clear()});
     this.exporter = new WikiExporter(this.sql, () => this.meta(), () => this.env.WIKI_FILES);
     this.initialized = !!this.sql.exec("SELECT 1 FROM sqlite_master WHERE name='wiki'").toArray().length;
   }
   private meta(): Meta {
+    this.lifecycle.assertAvailable();
     const row = this.initialized ? this.sql.exec<Meta>('SELECT * FROM wiki WHERE singleton=1').toArray()[0] : undefined;
     if (!row || row.deleted) throw notFound();
     return row;
@@ -88,6 +93,7 @@ export class Wiki extends DurableObject<WikiEnv> {
     return { page_id: page.id, ancestors, previous: previous ?? null, next: next ?? null };
   }
   private change(kind: string, pageID: string | null, rev: number | null): number {
+    this.lifecycle.activity();
     this.cache.clear();
     const seq = this.sql.exec<{ version: number }>('UPDATE wiki SET version=version+1 WHERE singleton=1 RETURNING version').one().version;
     this.sql.exec('INSERT INTO changes VALUES (?,?,?,?,?)', seq, kind, pageID, rev, now());
@@ -134,7 +140,9 @@ export class Wiki extends DurableObject<WikiEnv> {
     const wikiID = String(input.id), auth = typeof input.auth_hash === 'string' && unb64(input.auth_hash);
     if (!canonicalID(wikiID) || !auth || auth.length !== 32) throw new HTTPError(400, 'Invalid wiki capability');
     const title = label(input.title, 'title');
+    if (this.lifecycle.record()?.state === 'deleted') throw new HTTPError(410,'This wiki was deleted. Restore through management or create a new capability.');
     if (this.initialized) {
+      this.lifecycle.assertAvailable();
       const row = this.sql.exec<Meta>('SELECT * FROM wiki').one();
       if (row.deleted) throw new HTTPError(410, 'This wiki was deleted. Generate a new capability.');
       if (!crypto.subtle.timingSafeEqual(auth, row.auth)) throw new HTTPError(409, 'Wiki already exists');
@@ -153,13 +161,16 @@ export class Wiki extends DurableObject<WikiEnv> {
       this.sql.exec('CREATE INDEX page_comments ON comments(page_id,seq)');
       this.sql.exec('CREATE TABLE attachments(id TEXT PRIMARY KEY,key TEXT NOT NULL,name TEXT NOT NULL,type TEXT NOT NULL,size INTEGER NOT NULL,status TEXT NOT NULL,created INTEGER NOT NULL)');
       this.sql.exec('INSERT INTO wiki VALUES (1,?,?,?,0,0,0,0)', wikiID, title, auth);
+      this.lifecycle.create(wikiID);
     });
     this.initialized = true;
     return json({ id: wikiID, title, url: `/w/${wikiID}` }, 201);
   }
   async fetch(request: Request): Promise<Response> {
     try {
+      if (new URL(request.url).pathname.startsWith('/_management')) return await this.lifecycle.handle(request);
       if (!wikiSettings(this.env).enabled) throw notFound();
+      this.lifecycle.tick();
       return await this.handle(request);
     } catch (error) {
       const response = failure(error);
@@ -167,7 +178,7 @@ export class Wiki extends DurableObject<WikiEnv> {
       // frame. They are inert JSON; other pages retain frame-ancestors 'none'.
       if (/\/export\/[a-f0-9-]{36}\/download$/.test(new URL(request.url).pathname)) response.headers.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'self'");
       return response;
-    }
+    } finally { await this.lifecycle.flush(); }
   }
   private async handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -194,10 +205,14 @@ export class Wiki extends DurableObject<WikiEnv> {
     const exportMatch = /^\/export\/([a-f0-9-]{36})$/.exec(path);
     if (exportMatch && get) return this.exporter.status(exportMatch[1]);
     if (exportMatch && request.method === 'DELETE') return this.exporter.cancel(exportMatch[1]);
-    if (path === '/links' || path.startsWith('/links/')) return spaceLinks(request, path, 'wiki', this.sql, () => { this.authorize(hash); });
-    if (!path && get) return json({ id: meta.id, title: meta.title, version: meta.version, content_bytes: meta.bytes,
+    if (path === '/links' || path.startsWith('/links/')) return spaceLinks(request, path, 'wiki', this.sql, () => { this.authorize(hash); }, () => this.lifecycle.assertAvailable());
+    if (!path && get) {
+      const managed = this.lifecycle.record();
+      return json({ id: meta.id, title: meta.title, version: meta.version, content_bytes: meta.bytes,
       attachment_bytes: meta.attachment_bytes, limits: wikiLimits, search: wikiSettings(this.env), summary: summarySettings(this.env),
+      retention: managed ? { expires_at: deadlines(managed).expires_at, paused: managed.policy.paused } : null,
       pages: this.sql.exec<{ count: number }>('SELECT COUNT(*) count FROM pages WHERE deleted=0').one().count });
+    }
     const summaryMatch = /^\/pages\/([^/]+)\/summary$/.exec(path);
     if ((path === '/summary' || summaryMatch) && request.method === 'POST') {
       if (!summarySettings(this.env).enabled) throw new HTTPError(404, 'AI summaries are disabled');
@@ -224,6 +239,7 @@ export class Wiki extends DurableObject<WikiEnv> {
         sources: rows.map(page => ({ title: page.title, revision: page.revision, text: summaryClip(page.markdown, summaryLimits.pageExcerpt), originalBytes: page.originalBytes, url: root + '?' + new URLSearchParams({ page: page.id, revision: String(page.revision) }) })) }, this.summaries, check);
     }
     if (!path && request.method === 'DELETE') {
+      if (this.lifecycle.record()) { await this.lifecycle.removeByCapability(); return new Response(null,{status:204}); }
       this.ctx.storage.transactionSync(() => {
         for (const table of ['wiki_search', 'chunks', 'pages', 'revisions', 'comments', 'changes']) this.sql.exec(`DELETE FROM ${table}`);
         clearSpaceLinks(this.sql);
@@ -476,6 +492,10 @@ export class Wiki extends DurableObject<WikiEnv> {
   }
   async alarm(): Promise<void> {
     if (!this.initialized) return;
+    await this.lifecycle.alarm();
+    // Lifecycle jobs own frozen attachment rows until backup/restore completes.
+    const state = this.lifecycle.record()?.state;
+    if (state && !['active','deleted'].includes(state)) return;
     const rows = this.sql.exec<Attachment>("SELECT * FROM attachments WHERE status='delete' OR (status='pending' AND created<?) LIMIT 20", Date.now() - 600000).toArray();
     try {
       for (const row of rows) {
@@ -488,7 +508,8 @@ export class Wiki extends DurableObject<WikiEnv> {
       }
     } finally {
       const remaining = this.sql.exec("SELECT 1 FROM attachments WHERE status<>'ready' LIMIT 1").toArray().length;
-      if (remaining) await this.ctx.storage.setAlarm(Date.now() + 30000);
+      if (remaining) await this.scheduleCleanup(Date.now() + 30000);
+      await this.lifecycle.schedule();
     }
   }
 }
@@ -520,7 +541,7 @@ export class WikiCreationGate extends DurableObject<WikiEnv> {
 }
 
 function wikiShell(wikiID: string, env: WikiEnv) {
-  const response = render('wiki', { WikiID: wikiID, WikiLayout: wikiSettings(env).layout, SummaryEnabled: summarySettings(env).enabled ? '1' : '0' });
+  const response = render('wiki', { WikiID: wikiID, WikiLayout: wikiSettings(env).layout, WikiCreationRetention: env.MANAGEMENT_ENABLED === '1' ? 'New wikis use administrator-managed retention. Administrators can retain restorable backups after deletion.' : 'Keep the complete link. No participant accounts or automatic expiry.', SummaryEnabled: summarySettings(env).enabled ? '1' : '0' });
   response.headers.set('Content-Security-Policy', response.headers.get('Content-Security-Policy')!.replace('img-src http: https: data:', 'img-src http: https: data: blob:'));
   if (wikiID) response.headers.set('Content-Security-Policy', response.headers.get('Content-Security-Policy')!.replace("form-action 'none'", "form-action 'self'; frame-src 'self'"));
   return response;

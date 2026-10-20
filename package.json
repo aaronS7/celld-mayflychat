@@ -16,7 +16,7 @@
     "dev": "CELLD_FETCH_TIMEOUT_S=86500 CELLD_HANDLER_BUDGET_S=86500 celld dev .",
     "predeploy": "npm run generate && tsc",
     "deploy": "celld deploy .",
-    "test": "npm run check && node celld/check.mjs && npm run test:settings && npm run test:policy && npm run test:moderation && npm run test:tagging && npm run test:reports && npm run test:wiki && npm run test:wiki:e2e && npm run test:html:preview:e2e && npm run test:spaces && npm run test:spaces:e2e && npm run test:chat:scroll:e2e && npm run test:summaries && npm run test:summaries:e2e && npm run test:deployment",
+    "test": "npm run check && node celld/check.mjs && npm run test:settings && npm run test:policy && npm run test:moderation && npm run test:tagging && npm run test:reports && npm run test:wiki && npm run test:wiki:e2e && npm run test:html:preview:e2e && npm run test:spaces && npm run test:spaces:e2e && npm run test:chat:scroll:e2e && npm run test:summaries && npm run test:summaries:e2e && npm run test:deployment && npm run test:fleet:config && npm run test:management",
     "test:spaces": "node --test --test-concurrency=1 celld/spaces.test.mjs",
     "test:spaces:e2e": "node --test celld/spaces-e2e.test.mjs",
     "test:chat:scroll:e2e": "node --test celld/chat-scroll-e2e.test.mjs",
@@ -42,10 +42,14 @@
     "test:fleet": "node celld/fleet.test.mjs",
     "test:ingress": "node celld/ingress.test.mjs",
     "test:moderation": "node --test --test-concurrency=1 celld/moderation.test.mjs celld/moderation-runtime.test.mjs",
-    "test:reports": "node --test celld/reports.test.mjs celld/reporting-coverage.test.mjs"
+    "test:reports": "node --test celld/reports.test.mjs celld/reporting-coverage.test.mjs",
+    "test:management": "node --test --test-concurrency=1 celld/management-storage.test.mjs celld/management-disclosure.test.mjs celld/management.test.mjs celld/management-auth.test.mjs celld/management-catalog.test.mjs celld/management-cancel.test.mjs",
+    "test:fleet:config": "node --test celld/fleet-config.test.mjs"
   },
   "dependencies": {
-    "@cloudflare/containers": "0.3.7"
+    "@cloudflare/containers": "0.3.7",
+    "aws4fetch": "1.0.20",
+    "jose": "6.2.12"
   },
   "engines": {
     "node": ">=22"

@@ -15,7 +15,7 @@ const pages = new Map();
 for (const [file, text] of Object.entries(native)) {
   if (!file.endsWith('.md')) continue;
   const name = posix.basename(file, '.md');
-  const overridden = ['hosting', 'operations', 'configuration', 'security', 'security-model', 'tagging', 'wiki', 'summaries', 'scheduled-reports'].includes(name);
+  const overridden = ['hosting', 'operations', 'configuration', 'security', 'security-model', 'tagging', 'wiki', 'summaries', 'scheduled-reports', 'management', 'management-setup'].includes(name);
   pages.set(name, { text, source: `${overridden ? 'celld' : 'srv'}/${file}` });
 }
 for (const [name, source] of [['jev', 'celld/JEV.md'], ['tagging-verification', 'celld/TAGGING-VERIFICATION.md'], ['wiki-verification', 'celld/WIKI-VERIFICATION.md'], ['mercury-deployment', 'celld/swamp/README.md']]) {

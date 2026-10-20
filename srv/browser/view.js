@@ -52,7 +52,13 @@ const identity = session.identity;
 let unread = 0;
 const poller = createPoller({
   read: signal => fetch(`${EVENTS}?since=${session.last}&wait=30`, {headers: hdr(), signal}),
-  deliver: async events => {
+  deliver: async (events, page) => {
+    if (page?.retention) {
+      expires = page.retention.expires_at || NaN;
+      const wrap = document.getElementById('expwrap');
+      if (wrap) wrap.hidden = !(expires > 0);
+      showExpiry();
+    }
     const n = await render(events);
     if (!gone && document.hidden && n) { unread += n; tabTitle(); }
   },
@@ -87,7 +93,7 @@ function showExpiry(){
   exp.textContent = remaining(Math.max(0, expires - Date.now()));
 }
 showExpiry();
-if (expires > 0) setInterval(showExpiry, 60000);
+setInterval(showExpiry, 60000);
 
 // --- copy the agent command ------------------------------------------------------
 const shellQuote = s => "'" + s.replace(/'/g, "'\\''") + "'";
