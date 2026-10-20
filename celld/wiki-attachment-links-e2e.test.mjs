@@ -1,0 +1,66 @@
+import assert from 'node:assert/strict';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import test from 'node:test';
+import { execute, page, post, wikiHarness } from './wiki-test-helper.mjs';
+
+for (const layout of ['0', '1']) test(`attachment links navigate and preserve access (book=${layout})`, {timeout:90000}, async t=>{
+  assert.ok(process.env.CHROME_BIN,'Set CHROME_BIN for the wiki browser test');
+  const h=await wikiHarness(t,{WIKI_BOOK_LAYOUT_ENABLED:layout}), wiki=await h.create();
+  const upload=await wiki.request('/attachments',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Filename':'report.pdf'},body:'%PDF-1.7\nfixture'});
+  assert.equal(upload.status,201);const id=upload.body.id,target='attachment-'+id;
+  const image=await wiki.request('/attachments',{method:'POST',headers:{'Content-Type':'image/png','X-Filename':'screenshot.png'},body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=','base64')});
+  const saved=(await wiki.request('/pages',post(page('Files',`[Jump to report](#${target})\n\n${'Paragraph before attachment.\n\n'.repeat(80)}${image.body.markdown}\n\n${upload.body.markdown}\n\n${upload.body.markdown}\n\n${'Paragraph after attachment.\n\n'.repeat(40)}`)))).body;
+  const other=(await wiki.request('/pages',post(page('Index',`[Open report](page:${saved.id}#${target})`)))).body;
+  const url=new URL(wiki.url);url.searchParams.set('page',saved.id);url.hash+='/'+target;
+  const client=join(h.directory,'wiki.mjs');await writeFile(client,(await h.http('/static/wiki.mjs')).body);
+  assert.equal(JSON.parse((await execute(process.execPath,[client,'read',url.href])).stdout).title,'Test knowledge');
+  const config={chrome:process.env.CHROME_BIN,profile:join(h.directory,'chrome'),url:url.href,other:other.id,page:saved.id,target,imageTarget:'attachment-'+image.body.id};
+  const harness=await readFile(new URL('../srv/testdata/chrome.cjs',import.meta.url),'utf8');
+  const exercise=String.raw`
+(async()=>{
+ try {
+  const {targetInfos}=await cdp('Target.getTargets');const tab=await attach(targetInfos.find(t=>t.type==='page').targetId);
+  const go=async url=>{await cdp('Page.navigate',{url},tab.sessionId);await until(()=>evaluate(tab,"!!document.querySelector('#wiki-content a, #wiki-content .mayfly-media')"),'page rendered');};
+  const visible=()=>evaluate(tab,'(()=>{const r=document.getElementById('+JSON.stringify(config.target)+')?.getBoundingClientRect();return r&&r.top>=0&&r.top<innerHeight})()');
+  await go(config.url);await until(visible,'direct link scrolls to attachment');
+  await until(()=>evaluate(tab,"document.querySelectorAll('#wiki-content .wiki-attachment-copy').length===3"),'cards loaded');
+  assert.equal(await evaluate(tab,'document.querySelectorAll('+JSON.stringify('#wiki-content [id="'+config.target+'"]')+').length'),1,'repeated uploads have unique DOM IDs');
+  await evaluate(tab,"Object.defineProperty(navigator,'clipboard',{value:{writeText:async text=>window.copiedLink=text},configurable:true});document.querySelectorAll('#wiki-content .wiki-attachment-copy')[1].click()");
+  await until(()=>evaluate(tab,'window.copiedLink'), 'link copied');
+  assert.equal(await evaluate(tab,'window.copiedLink'),config.url);
+  await evaluate(tab,'window.scrollTo(0,0);document.querySelector("#wiki-content a").click()');
+  await until(visible,'relative fragment link scrolls');
+  const screenshot=new URL(config.url);screenshot.hash=screenshot.hash.split('/')[0]+'/'+config.imageTarget;
+  await go(screenshot.href);
+  await until(()=>evaluate(tab,'document.activeElement.id==='+JSON.stringify(config.imageTarget)), 'screenshot receives focus');
+  await until(()=>evaluate(tab,"document.querySelector('#wiki-content img')?.naturalWidth===1"),'screenshot preview loads');
+  assert.ok(await evaluate(tab,'(()=>{const r=document.getElementById('+JSON.stringify(config.imageTarget)+').getBoundingClientRect();return r.top>=0&&r.top<innerHeight})()'),'screenshot stays visible after image loading');
+  await cdp('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false},tab.sessionId);
+  const other=new URL(config.url);other.searchParams.set('page',config.other);other.hash=other.hash.split('/')[0];
+  await go(other.href);await evaluate(tab,'document.querySelector("#wiki-content a").click()');
+  await until(()=>evaluate(tab,'new URLSearchParams(location.search).get("page")==='+JSON.stringify(config.page)),'cross-page link navigates');
+  await until(visible,'cross-page link scrolls');
+  await evaluate(tab,'history.back()');await until(()=>evaluate(tab,'new URLSearchParams(location.search).get("page")==='+JSON.stringify(config.other)),'back returns to index');
+  await evaluate(tab,'history.forward()');await until(visible,'forward restores attachment target');
+  const historical=new URL(config.url);historical.searchParams.set('revision','1');await go(historical.href);
+  await until(visible,'revision link scrolls');
+  await until(()=>evaluate(tab,"document.querySelectorAll('#wiki-content .wiki-attachment-copy').length===3"),'historical card loaded');
+  await evaluate(tab,"Object.defineProperty(navigator,'clipboard',{value:{writeText:async text=>window.copiedLink=text},configurable:true});document.querySelectorAll('#wiki-content .wiki-attachment-copy')[1].click()");
+  await until(()=>evaluate(tab,'window.copiedLink'), 'revision link copied');assert.equal(await evaluate(tab,'window.copiedLink'),historical.href);
+  const historicalIndex=new URL(other.href);historicalIndex.searchParams.set('revision','1');
+  await go(historicalIndex.href);await evaluate(tab,'document.querySelector("#wiki-content a").click()');
+  await until(()=>evaluate(tab,'new URLSearchParams(location.search).get("page")==='+JSON.stringify(config.page)), 'historical index links to current page');
+  await until(visible,'current page attachment scrolls after leaving history');
+  assert.equal(await evaluate(tab,'new URL(document.querySelector("#wiki-content a").href).searchParams.get("revision")'),null,'relative attachment links use the destination revision');
+  const missingKey=new URL(config.url);missingKey.hash=config.target;
+  await cdp('Page.navigate',{url:'about:blank'},tab.sessionId);
+  await until(()=>evaluate(tab,'location.href==="about:blank"'),'leave wiki before testing a link without a key');
+  await cdp('Page.navigate',{url:missingKey.href},tab.sessionId);
+  await until(()=>evaluate(tab,"document.getElementById('wiki-status')?.textContent.includes('missing its key')"),'attachment ID alone does not grant access');
+  assert.equal(await evaluate(tab,"document.getElementById('wiki-main').hidden"),true);
+ } finally {chrome.kill('SIGTERM');await exited;}
+})().catch(error=>{console.error(error);process.exitCode=1;});`;
+  const script=join(h.directory,'browser.cjs');await writeFile(script,`const config=${JSON.stringify(config)};\n${harness}\n${exercise}`);
+  await execute(process.execPath,[script],{timeout:70000,maxBuffer:1024*1024});
+});
