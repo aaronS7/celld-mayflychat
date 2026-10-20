@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash, hkdfSync, randomBytes } from "node:crypto";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile, symlink } from "node:fs/promises";
 import { createServer } from "node:http";
 import { createServer as tcpServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -45,6 +45,7 @@ test("encryption, moderation, and automatic tagging on celld 0.5", { timeout: 36
     await rm(dir, { recursive: true, force: true });
   });
   await cp(new URL("./native/", import.meta.url), join(dir, "celld/native"), { recursive: true });
+  await symlink(new URL("../node_modules",import.meta.url).pathname,join(dir,"node_modules"));
   const config = JSON.parse((await readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8")).replace(/^\s*\/\/.*$/gm, ""));
   delete config.vars.ENCRYPTION_ENABLED;
   delete config.vars.JEV_ENABLED;

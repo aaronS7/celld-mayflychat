@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile, symlink } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -88,6 +88,7 @@ let succeeded = false;
 try {
   await cp(join(root, "celld/native"), join(project, "celld/native"), { recursive: true });
   await cp(join(root, "wrangler.jsonc"), join(project, "wrangler.jsonc"));
+  await symlink(join(root,"node_modules"),join(project,"node_modules"));
   await run(go, ["build", "-p", "1", "-o", join(dir, "mayfly"), "./cmd/mayfly"], "go-build");
   const reference = start(join(dir, "mayfly"), ["-listen", `127.0.0.1:${referencePort}`, "-db", join(dir, "reference.sqlite3"), "-trust-proxy"], "reference");
   await ready(reference, `http://127.0.0.1:${referencePort}`);

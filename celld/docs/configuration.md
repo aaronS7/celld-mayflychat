@@ -180,8 +180,10 @@ See `celld/FLEET.md` in the checkout for its commands and fault-test boundaries.
 | `ENCRYPTION_ENABLED`, `JEV_ENABLED`, `JEV_TAGGING_ENABLED`, `WIKI_ENABLED`, `JEV_WIKI_SEARCH_ENABLED`, `WIKI_BOOK_LAYOUT_ENABLED`, `TYPESAFE_MODEL`, `AI_SUMMARY_ENABLED`, `MERCURY_BASE_URL`, `MERCURY_MODEL` | A supplied shell variable overrides the previously saved selection, which overrides `wrangler.jsonc`. Omission keeps the previous selection; use explicit `0` to disable a flag. A model reset can use `TYPESAFE_MODEL=jev-latest` or `MERCURY_MODEL=mercury-2.5`. |
 | `TYPESAFE_API_KEY` | For enabled plaintext screening, tagging or wiki ranking, a nonempty shell value takes precedence over the `TYPESAFE_API_KEY=...` line in ignored `typesafe.celld.env`. The file supports optional enclosing quotes, not shell execution. Missing, blank, or multiline resolved key values stop deployment; provider validity is checked only on a post. The key is loaded again for every deployment using Jev; it is not saved in `fleet.json`. |
 | `MERCURY_API_KEY` | For enabled plaintext summaries, the shell value overrides the key passed in private deployment bindings. Missing, blank or multiline values stop deployment. The key is excluded from `fleet.json` and redacted in helper command output; supply it again for subsequent summary-enabled deployments. |
+| `MANAGEMENT_*`, `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_ADMIN_SUBJECTS`, `ARCHIVE_STORAGE`, `ARCHIVE_S3_ENDPOINT`, `ARCHIVE_S3_BUCKET`, `ARCHIVE_S3_REGION`, `ARCHIVE_S3_ACCESS_KEY_ID` | Same precedence as the policy variables above: shell, then saved selection, then `wrangler.jsonc` (which sets `MANAGEMENT_ENABLED=0`). See [admin setup](management-setup.md). |
+| `OIDC_CLIENT_SECRET`, `ARCHIVE_S3_SECRET_ACCESS_KEY`, `ARCHIVE_S3_SESSION_TOKEN` | The shell value overrides one passed in private deployment bindings. Blank or unset omits it; multiline values stop deployment. Excluded from `fleet.json` and redacted in helper output; supply them again for every deployment that needs them, or the redeploy drops them. |
 
-The helper only forwards the policy/model/provider variables and credentials above.
+The helper only forwards the policy/model/provider/management variables and credentials above.
 Exporting `RETENTION_SECONDS` or `TRUST_PROXY` does not configure its Worker.
 Retention comes from `wrangler.jsonc`; the HTTPS helper enables proxy trust in
 both the Worker and daemon configuration and retains that selection.
@@ -196,7 +198,7 @@ Tokio threads, placement weight `1`, a 64 MiB isolate heap, and a 256 MiB RSS
 pressure threshold per process; the latter is not a hard memory cap. These are
 test-runner choices, not generic celld defaults or shell overrides.
 
-The TypeSafe and Mercury keys **are** included when used in private Worker configuration
+The TypeSafe, Mercury, OIDC client and archive S3 secrets **are** included when used in private Worker configuration
 and S3 deployment metadata. Those are not a separate secret vault. The helper
 omits unused keys from new deployments, but old deployments can retain them;
 disabling provider features does not revoke keys or erase historical copies. Keep `.dev.vars`,
@@ -220,3 +222,16 @@ policy suite substitutes a local provider fixture and does not call TypeSafe.
 | `MAYFLY_KEEP_TEST_STATE` | Unset/empty lets the full harness clean up after success. Any nonempty value, including `0`, retains its temporary state/logs. Failures retain them automatically. |
 | `MAYFLY_TEST_REJECTION_TEXT` | Unset disables the extra rejection assertion. When set, browser/client tests submit that text and expect refusal; the policy suite sets a synthetic fixture value. |
 | `MAYFLY_TEST_TAGS` | Unset disables tag assertions. A JSON array enables checks that browser/client messages retain exactly those labels. Intended for the policy suite's deterministic local provider fixture. |
+
+## Admin management and archive storage
+
+Management defaults off. Only future creations are enrolled when
+`MANAGEMENT_ENABLED=1`; existing resources are never automatically adopted.
+Follow [Setting up the admin panel](management-setup.md) to register the OIDC
+client, configure local and production bindings, deploy the migration and verify
+the panel. See [management configuration](management.md#configure) for OIDC, both TTL
+defaults, audit retention, and the `ARCHIVES` R2 binding. Production activation
+requires an OIDC issuer/client/admin subject allowlist. Backups default to
+`r2/mayfly-archives/` in Celld's existing fleet bucket and reuse its storage
+configuration; no additional S3 endpoint or credentials are required. A separate
+S3 bucket can be selected explicitly if desired.

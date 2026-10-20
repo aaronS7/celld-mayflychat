@@ -66,3 +66,8 @@ plaintext chats, saved wiki pages and bounded wiki overviews. Header buttons
 show live text, coverage and saved source links. Enable with
 `AI_SUMMARY_ENABLED=1`, `MERCURY_BASE_URL` and a private `MERCURY_API_KEY`;
 summaries default off and are unavailable for encrypted chats.
+
+Optional [admin management](celld/docs/management.md) adds an OIDC-protected
+`/admin` panel with per-resource TTLs, full backups and restore for chats and
+wikis created after it is enabled. It defaults off; follow
+[Setting up the admin panel](celld/docs/management-setup.md) to enable it.

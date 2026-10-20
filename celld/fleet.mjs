@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { chmod, cp, mkdir, open, readFile, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, open, readFile, writeFile, symlink } from "node:fs/promises";
 import { createServer } from "node:net";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -11,6 +11,12 @@ import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+const managementVariables = ["MANAGEMENT_ENABLED", "MANAGEMENT_ORIGIN", "OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_ADMIN_SUBJECTS",
+  "MANAGEMENT_CHAT_IDLE_SECONDS", "MANAGEMENT_CHAT_AGE_SECONDS", "MANAGEMENT_WIKI_IDLE_SECONDS", "MANAGEMENT_WIKI_AGE_SECONDS",
+  "MANAGEMENT_ARCHIVE_ON_TTL", "MANAGEMENT_AUDIT_DAYS", "ARCHIVE_STORAGE", "ARCHIVE_S3_ENDPOINT", "ARCHIVE_S3_BUCKET",
+  "ARCHIVE_S3_REGION", "ARCHIVE_S3_ACCESS_KEY_ID"];
+const managementSecrets = ["OIDC_CLIENT_SECRET", "ARCHIVE_S3_SECRET_ACCESS_KEY", "ARCHIVE_S3_SESSION_TOKEN"];
+const privateVariables = ["TYPESAFE_API_KEY", "MERCURY_API_KEY", ...managementSecrets];
 export const defaultState = process.env.MAYFLY_FLEET_STATE || join(homedir(), ".local/state/mayfly-celld-fleet");
 async function freePort() {
   const server = createServer();
@@ -27,6 +33,8 @@ export class Fleet {
     let state;
     try { state = JSON.parse(await readFile(join(directory, "fleet.json"), "utf8")); }
     catch (error) { if (error.code !== "ENOENT") throw error; }
+    // Older state may hold private values; the save below must not keep them.
+    for (const name of privateVariables) delete state?.vars?.[name];
     const credentialPath = resolve(credentialsFile || state?.credentialsFile || join(root, "s3.celld.env"));
     const credentials = JSON.parse(await readFile(credentialPath, "utf8"));
     for (const key of ["accessKeyId", "secretAccessKey", "bucket", "s3Endpoint", "region"]) {
@@ -88,11 +96,12 @@ export class Fleet {
   async deploy(vars = {}) {
     await mkdir(this.project, { recursive: true });
     await cp(join(root, "celld/native"), join(this.project, "celld/native"), { recursive: true });
+    await symlink(join(root,"node_modules"),join(this.project,"node_modules")).catch(error=>{if(error.code!=="EEXIST")throw error;});
     // This repository's config uses JSON plus standalone line comments.
     const source = await readFile(join(root, "wrangler.jsonc"), "utf8");
     const config = JSON.parse(source.replace(/^\s*\/\/.*$/gm, ""));
     if (this.state.trustProxy) config.vars.TRUST_PROXY = "1";
-    for (const name of ["ENCRYPTION_ENABLED", "JEV_ENABLED", "JEV_TAGGING_ENABLED", "WIKI_ENABLED", "JEV_WIKI_SEARCH_ENABLED", "WIKI_BOOK_LAYOUT_ENABLED", "TYPESAFE_MODEL", "AI_SUMMARY_ENABLED", "MERCURY_BASE_URL", "MERCURY_MODEL"]) {
+    for (const name of ["ENCRYPTION_ENABLED", "JEV_ENABLED", "JEV_TAGGING_ENABLED", "WIKI_ENABLED", "JEV_WIKI_SEARCH_ENABLED", "WIKI_BOOK_LAYOUT_ENABLED", "TYPESAFE_MODEL", "AI_SUMMARY_ENABLED", "MERCURY_BASE_URL", "MERCURY_MODEL", ...managementVariables]) {
       const value = process.env[name] ?? this.state.vars?.[name];
       if (value !== undefined) config.vars[name] = value;
     }
@@ -130,12 +139,21 @@ export class Fleet {
       config.vars.MERCURY_API_KEY = key.trim();
       this.privateValues = new Set([...(this.privateValues || []), key.trim()]);
     } else delete config.vars.MERCURY_API_KEY;
+    // Management secrets follow the Mercury key: supplied for each deployment, never saved or printed.
+    for (const name of managementSecrets) {
+      const value = process.env[name] ?? vars[name];
+      if (value) {
+        assert.ok(value.trim() && !/[\r\n]/.test(value), `${name} must be a single nonblank line`);
+        config.vars[name] = value.trim();
+        this.privateValues = new Set([...(this.privateValues || []), value.trim()]);
+      } else delete config.vars[name];
+    }
     const deploymentFile = join(this.project, "wrangler.jsonc");
     await writeFile(deploymentFile, JSON.stringify(config, null, 2), { mode: 0o600 });
     await chmod(deploymentFile, 0o600);
     const output = await this.command(["deploy", this.project, "--json"], "deploy");
     this.state.deployment = JSON.parse(output.trim());
-    this.state.vars = Object.fromEntries(Object.entries(config.vars).filter(([name]) => !["TYPESAFE_API_KEY", "MERCURY_API_KEY"].includes(name)));
+    this.state.vars = Object.fromEntries(Object.entries(config.vars).filter(([name]) => !privateVariables.includes(name)));
     await this.save();
     for (const node of this.state.nodes) {
       if (await this.running(node)) {
