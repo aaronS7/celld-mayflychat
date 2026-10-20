@@ -1,6 +1,6 @@
 // All author content is sanitized before adding app-owned links, images or tokens.
 // No rendered Markdown HTML, inline SVG, automatic external media requests or scripts.
-function wikiMarkdown(source, context) {
+function wikiMarkdown(source, context, {sections = true} = {}) {
   const escape = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const clean = DOMPurify(window), images = new Map(), links = new Map();
   const nonce = crypto.randomUUID();let nextSlot=0;
@@ -33,7 +33,7 @@ function wikiMarkdown(source, context) {
   const attachmentIDs=new Set();
   const attachment=(span,id)=>{
     const holder=document.createElement('span');holder.className='wiki-attachment wiki-anchor';holder.tabIndex=-1;
-    if(!attachmentIDs.has(id)){holder.id='attachment-'+id;attachmentIDs.add(id);}
+    if(sections&&!attachmentIDs.has(id)){holder.id='attachment-'+id;attachmentIDs.add(id);}
     span.replaceWith(holder);holder.append(span);
     const label=span.textContent, retry=document.createElement('button');retry.type='button';retry.textContent='Retry attachment';
     const load=async()=>{

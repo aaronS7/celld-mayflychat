@@ -137,14 +137,17 @@ Use `[Screenshot](#attachment-ATTACHMENT_ID)` in the same page's Markdown, or
 `[Screenshot](page:PAGE_ID#attachment-ATTACHMENT_ID)` from another wiki page.
 The attachment ID comes from the upload response or an existing
 `attachment:ATTACHMENT_ID` destination. Repeated references to an upload target
-its first occurrence on that page. IDs survive page edits and filename changes.
+its first occurrence in the main page, excluding nested Markdown previews. IDs
+survive page edits and filename changes.
 
 Agents can construct the exact browser link as
 `/w/WIKI_ID?page=PAGE_ID#KEY/attachment-ATTACHMENT_ID` (relative to the site origin).
 Keep the complete key before `/attachment-`; a bare `#attachment-ID` is Markdown
 syntax inside the wiki, not a complete shareable browser URL. Add
 `&revision=REVISION` before `#` to target a saved revision. The standalone client
-accepts these attachment URLs wherever it accepts a wiki URL.
+accepts these attachment URLs wherever it accepts a wiki URL. Exported Markdown rewrites
+attachment jumps to relative links to the uploaded files, including jumps from
+other pages; single-page exports include those files.
 
 Downloads save the original file, including MP4s, PDFs and archives, so you can
 move it into a folder or attach it to a GitHub pull request.

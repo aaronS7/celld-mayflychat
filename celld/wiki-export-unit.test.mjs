@@ -50,6 +50,15 @@ with zipfile.ZipFile(sys.argv[1]) as z:
   assert.ok(output.includes('\\'+link),'escaped link syntax stays literal');
   assert.ok(output.includes('[External](https://example.invalid/file)'));
   assert.equal(exportMarkdown('[missing](page:33333333-3333-4333-8333-333333333333)','pages/a.md',pages,files),'[missing](page:33333333-3333-4333-8333-333333333333)');
+  const jumps=[`[Here](#attachment-${attachment})`,`[There](page:${page}#attachment-${attachment})`,`[jump]: <page:${page}#attachment-${attachment}>`,`<page:${page}#attachment-${attachment}>`].join('\n');
+  assert.deepEqual(zip.exportReferences(jumps),{pages:[],attachments:[attachment]},'attachment jumps reference uploaded bytes even when linked from another page');
+  const portableJumps=exportMarkdown(jumps,'README.md',new Map(),files);
+  assert.ok(portableJumps.includes('[Here](attachments/file/data.json)'));
+  assert.ok(portableJumps.includes('[There](attachments/file/data.json)'));
+  assert.ok(portableJumps.includes('[jump]: <attachments/file/data.json>'));
+  assert.ok(portableJumps.includes(`[page:${page}#attachment-${attachment}](attachments/file/data.json)`));
+  assert.equal(exportMarkdown(jumps,'README.md',pages,new Map()),jumps,'unavailable attachment destinations remain explicit');
+  assert.deepEqual(zip.exportReferences('```md\n'+jumps+'\n```'),{pages:[],attachments:[]},'attachment jump examples remain literal');
   const absent='33333333-3333-4333-8333-333333333333', example='[Example](attachment:'+absent+')';
   const fixture=[
     '# Repository handoff', image, '[File][asset]', '[asset]:\n    <attachment:'+attachment+'> "Download"',
