@@ -106,6 +106,21 @@ test('wiki export API and served agent client preserve all current content and e
     assert.deepEqual((await unpack(latestPath))['README.md'],latest['README.md'],'existing output is never overwritten');
     assert.ok(!(await readdir(h.directory)).some(n=>n.endsWith('.part')));
   });
+  await t.test('attachment jumps export usable files in whole-wiki and single-page archives',async()=>{
+    const jumps=`[Here](#attachment-${file.id})\n\n[There](page:${parent.id}#attachment-${file.id})\n`;
+    const linked=(await wiki.request('/pages',post(page('Attachment jumps',jumps)))).body;
+    const output=join(h.directory,'attachment-jumps.zip');
+    const plan=JSON.parse((await execute(process.execPath,[client,'export-page',wiki.url,linked.id,output])).stdout);
+    assert.equal(plan.attachments,1);assert.deepEqual(plan.unresolved_pages,[],'attachment jumps resolve to bytes without exporting the other page');
+    const archive=await unpack(output),destination='attachments/'+file.id+'/__notes.json';
+    assert.equal(archive['README.md'].toString(),`[Here](${destination})\n\n[There](${destination})\n`);
+    assert.deepEqual(archive[destination],bytes);
+    const allOutput=join(h.directory,'attachment-jumps-wiki.zip');
+    await execute(process.execPath,[client,'export',wiki.url,allOutput]);
+    const all=await unpack(allOutput);
+    assert.equal(all['pages/attachment-jumps.md'].toString(),`[Here](../${destination})\n\n[There](../${destination})\n`);
+    assert.deepEqual(all[destination],bytes);
+  });
   await t.test('page export handles unavailable references, code examples and deleted history explicitly',async()=>{
     const foreign=(await other.request('/attachments',{method:'POST',headers:{'X-Filename':'private.json','Content-Type':'application/json'},body:'PRIVATE OTHER WIKI'})).body;
     const missing='[Missing](attachment:'+foreign.id+')';

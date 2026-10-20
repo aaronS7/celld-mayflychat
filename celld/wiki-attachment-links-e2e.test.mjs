@@ -29,6 +29,10 @@ for (const layout of ['0', '1']) test(`attachment links navigate and preserve ac
   await evaluate(tab,"Object.defineProperty(navigator,'clipboard',{value:{writeText:async text=>window.copiedLink=text},configurable:true});document.querySelectorAll('#wiki-content .wiki-attachment-copy')[1].click()");
   await until(()=>evaluate(tab,'window.copiedLink'), 'link copied');
   assert.equal(await evaluate(tab,'window.copiedLink'),config.url);
+  await evaluate(tab,'(()=>{const nested=document.createElement("details");nested.open=true;nested.append(wikiMarkdown('+JSON.stringify('[Nested report](attachment:'+config.target.slice(11)+')')+',{attachmentInfo:async()=>({name:"nested-report.pdf",type:"application/octet-stream"}),attachment:async()=>({})},{sections:false}));document.getElementById("wiki-content").prepend(nested);window.nestedPreview=nested;})()');
+  await until(()=>evaluate(tab,'!!window.nestedPreview.querySelector(".mayfly-media")'),'nested Markdown preview renders');
+  assert.equal(await evaluate(tab,'document.querySelectorAll('+JSON.stringify('#wiki-content [id="'+config.target+'"]')+').length'),1,'nested previews never take canonical attachment anchors');
+  await evaluate(tab,'window.nestedPreview.open=false');
   await evaluate(tab,'window.scrollTo(0,0);document.querySelector("#wiki-content a").click()');
   await until(visible,'relative fragment link scrolls');
   const screenshot=new URL(config.url);screenshot.hash=screenshot.hash.split('/')[0]+'/'+config.imageTarget;

@@ -34,7 +34,7 @@ function wikiMarkdown(source, context = {}, {sections = true, baseURL} = {}) {
   const attachmentIDs=new Set();
   const attachment=(span,id)=>{
     const holder=document.createElement('span');holder.className='wiki-attachment wiki-anchor';holder.tabIndex=-1;
-    if(!attachmentIDs.has(id)){holder.id='attachment-'+id;attachmentIDs.add(id);}
+    if(sections&&!attachmentIDs.has(id)){holder.id='attachment-'+id;attachmentIDs.add(id);}
     span.replaceWith(holder);holder.append(span);
     const label=span.textContent, retry=document.createElement('button');retry.type='button';retry.textContent='Retry attachment';
     const load=async()=>{
