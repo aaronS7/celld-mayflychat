@@ -42,7 +42,7 @@ function wikiMarkdown(source, context = {}, {sections = true, baseURL} = {}) {
       try {
         const info=await context.attachmentInfo(id);
         const card=mayflyMedia({name:info.name,kind:mayflyMediaKind(info.type,info.name),language:mayflyTextLanguage(info.name,info.type),resolve:()=>context.attachment(id),autoImage:true,autoText:true,renderMarkdown:value=>wikiMarkdown(value,context,{sections:false})});
-        if(context.attachmentURL){
+        if(sections&&context.attachmentURL){
           const copy=document.createElement('button');copy.type='button';copy.textContent='Copy link';copy.className='wiki-attachment-copy';
           copy.addEventListener('click',async()=>{
             try{await navigator.clipboard.writeText(context.attachmentURL(id));card.querySelector('.media-status').textContent='Attachment link copied.';}
