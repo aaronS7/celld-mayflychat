@@ -49,8 +49,8 @@ async function main() {
     if (response) console.log(JSON.stringify({ ...response, url: `${url.origin}/w/${derived.id}#${key.toString('base64url')}` }));
     return;
   }
-  const match = /^\/w\/([A-Za-z0-9_-]{22})\/?$/.exec(url.pathname), fragment = url.hash.slice(1);
-  if (!match || !/^[A-Za-z0-9_-]{43}$/.test(fragment)) throw new Error('Use a complete /w/ID#key URL');
+  const match = /^\/w\/([A-Za-z0-9_-]{22})\/?$/.exec(url.pathname), fragment = url.hash.slice(1).split('/')[0];
+  if (!match || !/^[A-Za-z0-9_-]{43}(?:\/attachment-[a-f0-9-]{36})?$/.test(url.hash.slice(1))) throw new Error('Use a complete /w/ID#key URL');
   const derived = derive(Buffer.from(fragment, 'base64url'));
   if (derived.id !== match[1]) throw new Error('The key does not match the wiki ID');
   headers.Authorization = 'Bearer ' + derived.auth;

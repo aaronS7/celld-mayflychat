@@ -30,13 +30,26 @@ function wikiMarkdown(source, context) {
     if(heading.title.startsWith(nonce+'-'))heading.id=heading.title.slice(nonce.length+1);
     heading.removeAttribute('title');
   }
+  const attachmentIDs=new Set();
   const attachment=(span,id)=>{
+    const holder=document.createElement('span');holder.className='wiki-attachment wiki-anchor';holder.tabIndex=-1;
+    if(!attachmentIDs.has(id)){holder.id='attachment-'+id;attachmentIDs.add(id);}
+    span.replaceWith(holder);holder.append(span);
     const label=span.textContent, retry=document.createElement('button');retry.type='button';retry.textContent='Retry attachment';
     const load=async()=>{
       span.textContent=label+' · Loading attachment…';
       try {
         const info=await context.attachmentInfo(id);
-        span.replaceWith(mayflyMedia({name:info.name,kind:mayflyMediaKind(info.type,info.name),language:mayflyTextLanguage(info.name,info.type),resolve:()=>context.attachment(id),autoImage:true,autoText:true}));
+        const card=mayflyMedia({name:info.name,kind:mayflyMediaKind(info.type,info.name),language:mayflyTextLanguage(info.name,info.type),resolve:()=>context.attachment(id),autoImage:true,autoText:true});
+        if(context.attachmentURL){
+          const copy=document.createElement('button');copy.type='button';copy.textContent='Copy link';copy.className='wiki-attachment-copy';
+          copy.addEventListener('click',async()=>{
+            try{await navigator.clipboard.writeText(context.attachmentURL(id));card.querySelector('.media-status').textContent='Attachment link copied.';}
+            catch{card.querySelector('.media-status').textContent='Could not copy link. Try again.';}
+          });
+          card.querySelector('.media-actions').append(copy);
+        }
+        span.replaceWith(card);
       } catch {span.textContent=label+' · Attachment unavailable. ';span.append(retry);}
     };
     retry.addEventListener('click',load);void load();
@@ -44,14 +57,14 @@ function wikiMarkdown(source, context) {
   for(const span of fragment.querySelectorAll('span[title]')) {
     const key=span.title; span.removeAttribute('title');
     if(links.has(key)) {
-      const href=links.get(key), page=/^page:([a-f0-9-]{36})$/.exec(href), file=/^attachment:([a-f0-9-]{36})$/.exec(href), external=safeHTTP(href);
+      const href=links.get(key), page=/^page:([a-f0-9-]{36})(?:#(attachment-[a-f0-9-]{36}))?$/.exec(href), local=/^#(attachment-[a-f0-9-]{36})$/.exec(href), file=/^attachment:([a-f0-9-]{36})$/.exec(href), external=safeHTTP(href);
       if(file){attachment(span,file[1]);continue;}
       const kind=external && mayflyLinkedFile(external);
       if(kind){span.replaceWith(mayflyMedia({name:span.textContent,kind,url:external}));continue;}
-      if(page || external) {
+      if(page || (local&&context.attachmentURL) || external) {
         const a=document.createElement('a');a.textContent=span.textContent;
-        a.href=page?context.pageURL(page[1]):external;
-        if(!page){a.target='_blank';a.rel='noopener noreferrer';a.referrerPolicy='no-referrer';}
+        a.href=page?context.pageURL(page[1],null,null,page[2]):local?context.attachmentURL(local[1].slice(11)):external;
+        if(!page&&!local){a.target='_blank';a.rel='noopener noreferrer';a.referrerPolicy='no-referrer';}
         span.replaceWith(a);
       }
     } else if(images.has(key)) {
