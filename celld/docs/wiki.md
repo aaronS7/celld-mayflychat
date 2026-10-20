@@ -3,7 +3,11 @@
 Mayfly's native celld service can host persistent Markdown wikis alongside its
 transient chats. Each wiki owns a SQLite Durable Object containing its pages,
 revision snapshots, section search index, navigation and discussion. Uploaded
-attachments use the `WIKI_FILES` R2 binding. Wikis do not inherit chat idle expiry.
+attachments use the `WIKI_FILES` R2 binding. Wikis do not inherit chat idle expiry. Administrator-managed wikis can have their own
+idle/age deadlines and restorable backups. Authenticated pages show the current
+deadline (updated on Refresh) and explain that backups can survive deletion and
+restore access through original links. The root metadata response exposes
+`retention: {expires_at, paused}` for managed wikis and `retention: null` otherwise.
 
 ## Enable the feature
 

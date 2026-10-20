@@ -6,6 +6,7 @@ import { attachmentType, bodyJSON, byteLength, commentAnchor, id, label, matchQu
 import { rankPassages, relevanceVersion, type SearchHit } from './wiki-search';
 import { clearSpaceLinks, spaceLinks } from './space-links';
 import { SummaryLimiter, summaryClip, summaryLimits, summaryRequest, summarySettings, streamSummary, type SummaryEnv } from './summaries';
+import { deadlines } from './management-core';
 import { ResourceLifecycle, type LifecycleEnv } from './management-lifecycle';
 import { WikiExporter } from './wiki-export';
 
@@ -205,9 +206,13 @@ export class Wiki extends DurableObject<WikiEnv> {
     if (exportMatch && get) return this.exporter.status(exportMatch[1]);
     if (exportMatch && request.method === 'DELETE') return this.exporter.cancel(exportMatch[1]);
     if (path === '/links' || path.startsWith('/links/')) return spaceLinks(request, path, 'wiki', this.sql, () => { this.authorize(hash); }, () => this.lifecycle.assertAvailable());
-    if (!path && get) return json({ id: meta.id, title: meta.title, version: meta.version, content_bytes: meta.bytes,
+    if (!path && get) {
+      const managed = this.lifecycle.record();
+      return json({ id: meta.id, title: meta.title, version: meta.version, content_bytes: meta.bytes,
       attachment_bytes: meta.attachment_bytes, limits: wikiLimits, search: wikiSettings(this.env), summary: summarySettings(this.env),
+      retention: managed ? { expires_at: deadlines(managed).expires_at, paused: managed.policy.paused } : null,
       pages: this.sql.exec<{ count: number }>('SELECT COUNT(*) count FROM pages WHERE deleted=0').one().count });
+    }
     const summaryMatch = /^\/pages\/([^/]+)\/summary$/.exec(path);
     if ((path === '/summary' || summaryMatch) && request.method === 'POST') {
       if (!summarySettings(this.env).enabled) throw new HTTPError(404, 'AI summaries are disabled');
@@ -536,7 +541,7 @@ export class WikiCreationGate extends DurableObject<WikiEnv> {
 }
 
 function wikiShell(wikiID: string, env: WikiEnv) {
-  const response = render('wiki', { WikiID: wikiID, WikiLayout: wikiSettings(env).layout, SummaryEnabled: summarySettings(env).enabled ? '1' : '0' });
+  const response = render('wiki', { WikiID: wikiID, WikiLayout: wikiSettings(env).layout, WikiCreationRetention: env.MANAGEMENT_ENABLED === '1' ? 'New wikis use administrator-managed retention. Administrators can retain restorable backups after deletion.' : 'Keep the complete link. No participant accounts or automatic expiry.', SummaryEnabled: summarySettings(env).enabled ? '1' : '0' });
   response.headers.set('Content-Security-Policy', response.headers.get('Content-Security-Policy')!.replace('img-src http: https: data:', 'img-src http: https: data: blob:'));
   if (wikiID) response.headers.set('Content-Security-Policy', response.headers.get('Content-Security-Policy')!.replace("form-action 'none'", "form-action 'self'; frame-src 'self'"));
   return response;
